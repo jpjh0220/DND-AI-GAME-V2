@@ -109,5 +109,37 @@ export const ENCOUNTERS_DB: Encounter[] = [
         challengeRating: 2,
         enemyIds: ['sahuagin', 'sahuagin'], // Assuming 'sahuagin' enemy exists
         rewards: { xp: 300, currency: 75 }
+    },
+
+    // === Coastal Encounters ===
+    {
+        id: 'coast_drowned_sailors',
+        name: "Drowned Sailors",
+        type: 'combat',
+        description: "A sudden fog rolls in, and waterlogged figures shamble from the surf, dragging rusted anchors behind them.",
+        challengeRating: 1,
+        enemyIds: ['drowned_sailor', 'drowned_sailor'],
+        rewards: { xp: 180, currency: 40, itemIds: ['storm_lantern'] }
+    },
+    {
+        id: 'coast_reef_stalker',
+        name: "Reef Stalker",
+        type: 'combat',
+        description: "The tide pools shimmer unnaturally before a reef stalker lunges from the rocks, teeth flashing like coral blades.",
+        challengeRating: 2,
+        enemyIds: ['reef_stalker'],
+        rewards: { xp: 300, currency: 60, itemIds: ['mariners_compass'] }
+    },
+    {
+        id: 'coast_lighthouse_signal',
+        name: "The Lighthouse Signal",
+        type: 'discovery',
+        description: "From the cliffs, a distant lighthouse flares a warning pattern. Someone is signaling for help across the stormy channel.",
+        rewards: { xp: 50, itemIds: ['storm_lantern'] },
+        choices: [
+            { id: 'answer_signal', label: 'Answer the signal', intent: 'discovery' },
+            { id: 'mark_on_map', label: 'Mark the pattern on your map', intent: 'discovery' },
+            { id: 'ignore_signal', label: 'Ignore it for now', intent: 'travel' }
+        ]
     }
 ];
