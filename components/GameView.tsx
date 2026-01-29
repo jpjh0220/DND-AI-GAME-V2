@@ -153,26 +153,21 @@ export const GameView: React.FC<GameViewProps> = ({ log, choices, processing, in
         <div className="flex gap-2 mb-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {choices.map(c => {
             const config = getIntentConfig(c.intent);
-            const { mana: manaCost, stamina: staminaCost } = getChoiceCost(c);
+            const manaCost = c.manaCost || 0;
+            const staminaCost = c.staminaCost || 0;
             const missingMana = Math.max(0, manaCost - playerResources.mp);
             const missingStamina = Math.max(0, staminaCost - playerResources.st);
             const canAfford = missingMana === 0 && missingStamina === 0;
-            const afterMana = Math.max(0, playerResources.mp - manaCost);
-            const afterStamina = Math.max(0, playerResources.st - staminaCost);
-            const afterDetails = manaCost > 0 || staminaCost > 0
-              ? `After: ${manaCost > 0 ? `MP ${playerResources.mp}→${afterMana}` : ''}${manaCost > 0 && staminaCost > 0 ? ' • ' : ''}${staminaCost > 0 ? `ST ${playerResources.st}→${afterStamina}` : ''}`
-              : 'Free action';
             const affordanceNote = !canAfford
               ? `Need ${missingMana ? `${missingMana} MP` : ''}${missingMana && missingStamina ? ' and ' : ''}${missingStamina ? `${missingStamina} ST` : ''}`
               : undefined;
-            const title = [affordanceNote, afterDetails].filter(Boolean).join(' • ') || undefined;
             return (
               <button 
                 key={c.id} 
                 disabled={processing || !canAfford} 
                 onClick={() => onAction(c.label, c)} 
-                title={title}
-                className={`group relative flex flex-col items-start gap-1 whitespace-nowrap px-4 py-2.5 border rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 disabled:grayscale ${config.style}`}
+                title={affordanceNote}
+                className={`group relative flex items-center gap-2 whitespace-nowrap px-4 py-2.5 border rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 disabled:grayscale ${config.style}`}
               >
                 <div className="flex items-center gap-2">
                   {config.icon}
