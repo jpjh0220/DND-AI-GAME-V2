@@ -8,7 +8,7 @@ import { RefreshCw, Heart, Zap, Wind, Coins, Map, User, Backpack, Star, Menu, Sh
 
 import { Player, World, LogEntry, Choice, Item, Enemy, SkillCheckDetails, NPC, Achievement, PlayerStats, Recipe, ShopData, Encounter, StatusEffect } from './types';
 import { getFirebaseConfig } from './firebase/index';
-import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry } from './systems/index';
+import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory } from './systems/index';
 import { callGeminiAPI, buildPrompt, generateSceneImage } from './api/index';
 import { saveGame as saveGameCloud } from './persistence/cloud';
 import { saveGameLocal, loadGameLocal, deleteSaveLocal, GameState, SaveSlotSummary, getAllSaveSlotSummaries } from './persistence/local';
@@ -39,6 +39,7 @@ export default function App() {
   const [activeSkillCheck, setActiveSkillCheck] = useState<SkillCheckDetails & { dc: number, text: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState<string>("");
+  const memoryStoreRef = useRef<MemoryStore | null>(null);
 
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export default function App() {
     setEnemy(newGameState.enemy);
   }, []);
 
-  const handleLoadGame = useCallback((slotId: string) => {
+  const handleLoadGame = useCallback(async (slotId: string) => {
     const loadedState = loadGameLocal(slotId);
     if (loadedState && loadedState.player) {
       updateGameState(loadedState);
@@ -88,6 +89,11 @@ export default function App() {
       setCurrentSlotId(slotId);
       setView('creator');
     }
+    // Initialize RAG memory store for this save slot
+    const store = new MemoryStore(slotId);
+    await store.load();
+    memoryStoreRef.current = store;
+    console.log(`MemoryStore loaded for slot ${slotId}: ${store.count} memories`);
   }, [updateGameState]);
 
   useEffect(() => {
@@ -137,6 +143,10 @@ export default function App() {
     setPlayer(dp); setWorld(dw); setLog(dl); setChoices(dc);
     setCurrentSlotId(targetSlotId); localStorage.setItem('lastPlayedSlotId', targetSlotId); setView('game');
     saveGameLocal(targetSlotId, { player: dp, world: dw, log: dl, choices: dc, view: 'game', enemy: null });
+    // Initialize fresh memory store for new game
+    const store = new MemoryStore(targetSlotId);
+    await store.load();
+    memoryStoreRef.current = store;
     addToast(`Quick Start: ${dp.name}!`, "success");
   }, [addToast]);
 
@@ -207,7 +217,11 @@ export default function App() {
 
     try {
       const model = "gemini-3-flash-preview";
-      const prompt = buildPrompt(nextPlayer, nextWorld, actionText, enemy, rollOverride, worldEventTriggered);
+      // RAG: Retrieve relevant past memories to augment the prompt
+      const retrievedMemories = memoryStoreRef.current
+          ? memoryStoreRef.current.retrieve(actionText, 5)
+          : [];
+      const prompt = buildPrompt(nextPlayer, nextWorld, actionText, enemy, rollOverride, worldEventTriggered, retrievedMemories);
       const aiData = await callGeminiAPI(prompt, model);
       const p = aiData.patch || {};
       let finalLog = [...nextLog];
@@ -387,6 +401,47 @@ export default function App() {
             .trim()
       }));
 
+      // RAG: Store new narration and events as memories for future retrieval
+      if (memoryStoreRef.current && aiData.narration) {
+          const narrationMemory = logEntryToMemory(
+              { type: 'narration', text: aiData.narration },
+              nextWorld,
+              nextPlayer
+          );
+          if (narrationMemory) {
+              // Add action context tags
+              if (enemy) narrationMemory.tags.push(enemy.name, 'combat');
+              if (p.eventTitle) narrationMemory.tags.push(p.eventTitle);
+              if (p.achievement) narrationMemory.tags.push(p.achievement);
+              if (p.npc?.id) {
+                  const npc = NPCS_DB.find(n => n.id === p.npc.id);
+                  if (npc) narrationMemory.tags.push(npc.name);
+                  narrationMemory.category = 'npc_interaction';
+              }
+              if (enemy) narrationMemory.category = 'combat';
+              if (p.startEncounter?.id) narrationMemory.category = 'world_event';
+              memoryStoreRef.current.addMemory(narrationMemory);
+          }
+
+          // Store milestone/achievement events separately
+          if (p.achievement) {
+              const achievement = ACHIEVEMENTS_DB.find(a => a.id === p.achievement);
+              if (achievement) {
+                  memoryStoreRef.current.addMemory({
+                      text: `Achievement unlocked: ${achievement.name} — ${achievement.description}`,
+                      category: 'milestone',
+                      tags: [achievement.name, achievement.category, nextPlayer.name],
+                      timestamp: Date.now(),
+                      sessionDay: nextWorld.day,
+                      sessionHour: nextWorld.hour,
+                  });
+              }
+          }
+
+          // Persist memories to IndexedDB (async, non-blocking)
+          memoryStoreRef.current.save().catch(err => console.warn('Memory save failed:', err));
+      }
+
       setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices(cleanedChoices);
       saveGameLocal(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: cleanedChoices, view: currentEnemy ? 'combat' : 'game', enemy: currentEnemy });
     } catch (err) {
@@ -396,7 +451,7 @@ export default function App() {
     setProcessing(false);
   };
 
-  const handleCharacterCreation = (data: Player) => {
+  const handleCharacterCreation = async (data: Player) => {
     if (!currentSlotId) return;
     // FIX: Initialize player with empty statusEffects array
     const { player: p, world: w, log: l, choices: c } = createCharacter(data);
@@ -404,6 +459,10 @@ export default function App() {
     p.statusEffects = [];
     setPlayer(p); setWorld(w); setLog(l); setChoices(c); setView('game');
     saveGameLocal(currentSlotId, { player: p, world: w, log: l, choices: c, view: 'game', enemy: null });
+    // Initialize fresh memory store for new character
+    const store = new MemoryStore(currentSlotId);
+    await store.load();
+    memoryStoreRef.current = store;
   };
 
   const handleEquip = (i: Item) => {
