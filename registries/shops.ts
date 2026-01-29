@@ -94,6 +94,22 @@ export const SHOPS_DB: ShopData[] = [
         ]
     },
     {
+        id: 'dockside_outfitter',
+        name: "Dockside Outfitter",
+        description: "A salty storefront packed with ropes, lanterns, and weatherproof gear for sea-bound expeditions.",
+        type: 'general',
+        inventory: [
+            { itemId: 'ration', quantity: 8 },
+            { itemId: 'waterskin', quantity: 5 },
+            { itemId: 'rope_50ft', quantity: 4 },
+            { itemId: 'storm_lantern', quantity: 3 },
+            { itemId: 'mariners_compass', quantity: 2 },
+            { itemId: 'belaying_pin', quantity: 2 },
+            { itemId: 'cloak_saltward', quantity: 2 },
+            { itemId: 'pot_water_breathing', quantity: 1 }
+        ]
+    },
+    {
         id: 'curiosities',
         name: "Curiosities & Oddities",
         description: "A dusty shop filled with strange artifacts, unusual trinkets, and forgotten relics.",
