@@ -87,5 +87,30 @@ export const NPCS_DB: NPC[] = [
         location: "The Colosseum",
         description: "A grizzled veteran gladiator who now runs the city's colosseum. He's always looking for new champions to entertain the crowds.",
         questGiver: true
+    },
+    {
+        id: 'captain_maris',
+        name: "Captain Maris Tideborn",
+        role: "Harbor Master",
+        location: "Stormwatch Harbor",
+        description: "A seasoned navigator who keeps Stormwatch's ships and sailors in line. She seeks brave hands to investigate recent disappearances at sea.",
+        questGiver: true,
+        factionAffiliation: "Stormwatch Mariners"
+    },
+    {
+        id: 'keeper_nessa',
+        name: "Nessa Rayward",
+        role: "Lighthouse Keeper",
+        location: "Saltwind Lighthouse",
+        description: "A vigilant keeper who watches the tides and storms, maintaining the beacon through long, stormy nights.",
+        questGiver: true
+    },
+    {
+        id: 'dockmaster_renn',
+        name: "Dockmaster Renn",
+        role: "Outfitter",
+        location: "Stormwatch Harbor",
+        description: "A quick-smiling merchant who outfits crews with ropes, lanterns, and navigation gear.",
+        shopkeeper: true
     }
 ];
