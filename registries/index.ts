@@ -14,3 +14,4 @@ export * from './factions'; // New
 export * from './deities'; // New
 export * from './shops'; // New
 export * from './encounters'; // New
+export * from './lore'; // New
