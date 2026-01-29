@@ -112,5 +112,308 @@ export const NPCS_DB: NPC[] = [
         location: "Stormwatch Harbor",
         description: "A quick-smiling merchant who outfits crews with ropes, lanterns, and navigation gear.",
         shopkeeper: true
+    },
+
+    // === Silverspire City NPCs ===
+    {
+        id: 'captain_voss',
+        name: "Captain Helena Voss",
+        role: "Commander of the Iron Guard",
+        location: "Silverspire City",
+        description: "A battle-scarred veteran who commands the city garrison with an iron will. She's always seeking capable adventurers for dangerous missions beyond the walls.",
+        questGiver: true,
+        factionAffiliation: "Iron Guard"
+    },
+    {
+        id: 'merchant_goldweave',
+        name: "Silara Goldweave",
+        role: "Master Merchant",
+        location: "Silverspire City",
+        description: "A shrewd half-elf trader who runs the Golden Exchange. She deals in rare goods from across the realms and always knows the best price for everything.",
+        shopkeeper: true,
+        factionAffiliation: "Merchant Consortium"
+    },
+    {
+        id: 'spy_whisper',
+        name: "Whisper",
+        role: "Harper Agent",
+        location: "Silverspire City",
+        description: "A nondescript figure who blends into any crowd. They pass coded messages in taverns and always seem to know more than they should.",
+        questGiver: true,
+        factionAffiliation: "Harpers"
+    },
+    {
+        id: 'librarian_aldric',
+        name: "Sage Aldric the Chronicler",
+        role: "Head Librarian",
+        location: "Great Library of Silverspire",
+        description: "An elderly gnome with spectacles perched on his nose, surrounded by towering stacks of books. He possesses encyclopedic knowledge of the realm's history.",
+        questGiver: true,
+        factionAffiliation: "Explorers' League"
+    },
+    {
+        id: 'priest_solana',
+        name: "High Priestess Solana",
+        role: "Temple Leader",
+        location: "Sunspire Cathedral",
+        description: "A radiant aasimar who leads the temple of Solarius. Her healing magic is legendary, and she offers blessings to those who fight against darkness.",
+        questGiver: true,
+        shopkeeper: true,
+        factionAffiliation: "Dawn Templars"
+    },
+
+    // === Wilderness NPCs ===
+    {
+        id: 'ranger_fenwick',
+        name: "Fenwick Thornwalker",
+        role: "Wilderness Guide",
+        location: "Whispering Woods",
+        description: "A weathered wood elf ranger who knows every trail, den, and hidden glade in the forest. He tracks poachers and protects travelers from beasts.",
+        questGiver: true,
+        factionAffiliation: "Forest Guardians"
+    },
+    {
+        id: 'hermit_grok',
+        name: "Grok the Hermit",
+        role: "Alchemist",
+        location: "Misty Hollow",
+        description: "A half-orc herbalist who lives alone in the swamp, brewing potions from rare fungi and bog plants. His remedies are potent, if foul-smelling.",
+        shopkeeper: true
+    },
+    {
+        id: 'dragonborn_hunter',
+        name: "Karath Flamescale",
+        role: "Monster Hunter",
+        location: "Dragon's Spine Mountains",
+        description: "A silver dragonborn who hunts the most dangerous creatures in the mountains. He pays well for information about monster lairs.",
+        questGiver: true
+    },
+    {
+        id: 'fairy_queen',
+        name: "Queen Titania's Emissary",
+        role: "Fey Ambassador",
+        location: "Feywild Crossing",
+        description: "A diminutive but impossibly regal fairy who speaks on behalf of the Summer Court. She offers boons to those who complete fey bargains.",
+        questGiver: true
+    },
+    {
+        id: 'centaur_chief',
+        name: "Chief Windrunner",
+        role: "Centaur Tribal Leader",
+        location: "Emerald Plains",
+        description: "A proud centaur warrior who leads the plains tribes. He values honor and strength, and may challenge travelers to prove their worth.",
+        questGiver: true,
+        factionAffiliation: "Emerald Enclave"
+    },
+
+    // === Underworld NPCs ===
+    {
+        id: 'fence_jinx',
+        name: "Jinx",
+        role: "Fence & Information Broker",
+        location: "Shadow Market",
+        description: "A wiry halfling with darting eyes who can acquire anything—for the right price. She buys stolen goods and sells secrets.",
+        shopkeeper: true,
+        factionAffiliation: "Shadow Syndicate"
+    },
+    {
+        id: 'assassin_veil',
+        name: "The Veil",
+        role: "Nightblade Contact",
+        location: "The Hollow (various cities)",
+        description: "A figure draped in shadow whose face is never seen. They deliver assassination contracts and collect payment in gold—or souls.",
+        questGiver: true,
+        factionAffiliation: "Nightblades"
+    },
+    {
+        id: 'pirate_captain_red',
+        name: "Captain Redtide",
+        role: "Pirate Captain",
+        location: "Blacktide Cove",
+        description: "A boisterous half-orc pirate captain with a mechanical arm and a heart of questionable gold. She's always recruiting for the next big heist.",
+        questGiver: true,
+        shopkeeper: true,
+        factionAffiliation: "Blacktide Pirates"
+    },
+    {
+        id: 'rat_king_skritch',
+        name: "Skritch",
+        role: "Rat King",
+        location: "The Undercity",
+        description: "A hunched figure wrapped in rags who commands an army of rats. He knows every secret passage beneath the cities and trades information for cheese—and coin.",
+        questGiver: true,
+        factionAffiliation: "Rat Catchers"
+    },
+
+    // === Ironhold & Dwarven NPCs ===
+    {
+        id: 'forgemaster_brunhild',
+        name: "Forgemaster Brunhild",
+        role: "Master Smith",
+        location: "Ironhold Citadel",
+        description: "The finest dwarven smith in the realm, her weapons and armor are sought by kings. She only crafts for those who bring her worthy materials.",
+        shopkeeper: true,
+        factionAffiliation: "Ironhold Royal Family"
+    },
+    {
+        id: 'miner_deep_delve',
+        name: "Thurgrim Deep-Delve",
+        role: "Mining Foreman",
+        location: "Ironhold Mines",
+        description: "A grizzled dwarf who oversees the deepest mining operations. He's encountered strange things in the dark and needs help investigating.",
+        questGiver: true
+    },
+    {
+        id: 'runesmith_agna',
+        name: "Agna Runecarver",
+        role: "Runesmith",
+        location: "Ironhold Citadel",
+        description: "A meticulous dwarven artificer who inscribes magical runes onto weapons and armor. Her enchantments are expensive but powerful.",
+        shopkeeper: true
+    },
+
+    // === Ravenshollow & Dark NPCs ===
+    {
+        id: 'gravedigger_mort',
+        name: "Mort the Gravedigger",
+        role: "Cemetery Keeper",
+        location: "Ravenshollow",
+        description: "A gaunt, quiet man who tends the ever-expanding cemetery. He's noticed the dead don't always stay buried and whispers of things moving at night.",
+        questGiver: true
+    },
+    {
+        id: 'fortune_teller_zara',
+        name: "Madame Zara",
+        role: "Fortune Teller",
+        location: "Ravenshollow",
+        description: "A mysterious tiefling seer who reads tarot cards and crystal balls. Her predictions are unsettlingly accurate, and she offers cryptic guidance for a fee.",
+        shopkeeper: true
+    },
+    {
+        id: 'vampire_lord_strahd',
+        name: "Lord Kazimir",
+        role: "Vampire Lord",
+        location: "Castle Shadowmere",
+        description: "An ancient vampire who rules a domain of dread from his crumbling castle. He is cultured and cruel, inviting adventurers to his domain as entertainment.",
+        questGiver: true
+    },
+
+    // === Traveling NPCs ===
+    {
+        id: 'bard_melody',
+        name: "Melody Songweaver",
+        role: "Traveling Bard",
+        location: "Various Taverns",
+        description: "A charismatic half-elf bard who travels between taverns, collecting stories and spreading news. She pays handsomely for tales of adventure.",
+        questGiver: true
+    },
+    {
+        id: 'tinker_cogsworth',
+        name: "Cogsworth",
+        role: "Gnome Tinker",
+        location: "Traveling Wagon",
+        description: "An eccentric rock gnome inventor who travels in a clockwork wagon. He sells bizarre but useful gadgets and always needs rare components.",
+        shopkeeper: true
+    },
+    {
+        id: 'bounty_hunter_kael',
+        name: "Kael Ironfist",
+        role: "Bounty Hunter",
+        location: "Various",
+        description: "A taciturn goliath bounty hunter covered in scars and trophies. He posts bounties on dangerous criminals and monsters at tavern boards.",
+        questGiver: true
+    },
+    {
+        id: 'traveling_merchant_silk',
+        name: "Silk",
+        role: "Exotic Merchant",
+        location: "Trade Roads",
+        description: "A mysterious tabaxi merchant who appears seemingly from nowhere, carrying goods from distant and exotic lands. Her prices are fair but her origins unknown.",
+        shopkeeper: true
+    },
+
+    // === Arcane Academy NPCs ===
+    {
+        id: 'professor_ignis',
+        name: "Professor Ignis",
+        role: "Evocation Teacher",
+        location: "Arcane Academy",
+        description: "A fiery-tempered fire genasi who teaches combat magic. His demonstrations are spectacular and occasionally set things on fire.",
+        questGiver: true,
+        factionAffiliation: "Circle of Mages"
+    },
+    {
+        id: 'librarian_whisp',
+        name: "Whisp",
+        role: "Arcane Librarian",
+        location: "Arcane Academy",
+        description: "A ghostly figure bound to the academy library for centuries. She guides researchers through the stacks and guards the restricted section.",
+        shopkeeper: true,
+        factionAffiliation: "Circle of Mages"
+    },
+    {
+        id: 'student_nim',
+        name: "Nim Sparkfinger",
+        role: "Apprentice Wizard",
+        location: "Arcane Academy",
+        description: "An eager young halfling student whose experiments frequently go wrong. She needs adventurers to help recover escaped magical creatures.",
+        questGiver: true,
+        factionAffiliation: "Circle of Mages"
+    },
+
+    // === Planar NPCs ===
+    {
+        id: 'djinni_ambassador',
+        name: "Zephyros the Windlord",
+        role: "Djinni Ambassador",
+        location: "Elemental Conflux",
+        description: "A noble djinni who serves as diplomat between the elemental planes and the material world. He grants wishes—but always with conditions.",
+        questGiver: true
+    },
+    {
+        id: 'githzerai_monk',
+        name: "Zerth Kal'thani",
+        role: "Githzerai Monk",
+        location: "Astral Plane",
+        description: "A disciplined githzerai who has achieved mastery over mind and body. She seeks allies against the githyanki and offers psychic training.",
+        questGiver: true,
+        factionAffiliation: "Planar Watchers"
+    },
+    {
+        id: 'modron_guide',
+        name: "Primus-7",
+        role: "Modron Guide",
+        location: "Mechanus Gate",
+        description: "A rogue modron that has gained individuality. It serves as a guide to the plane of absolute order and speaks in precise, logical terms.",
+        questGiver: true
+    },
+
+    // === Faction Leaders ===
+    {
+        id: 'zhentarim_boss',
+        name: "Darkmaster Ravok",
+        role: "Zhentarim Commander",
+        location: "Darkhold Fortress",
+        description: "A ruthless human warlock who commands the local Zhentarim operations. He offers lucrative but morally questionable contracts.",
+        questGiver: true,
+        factionAffiliation: "Zhentarim"
+    },
+    {
+        id: 'explorer_league_master',
+        name: "Grand Explorer Thessa",
+        role: "League Guildmaster",
+        location: "Cartographer's Hall",
+        description: "A weathered half-elf woman covered in maps and expedition notes. She sends adventurers to uncharted territories and lost ruins.",
+        questGiver: true,
+        factionAffiliation: "Explorers' League"
+    },
+    {
+        id: 'dragon_cult_leader',
+        name: "Wyrmspeaker Malzeth",
+        role: "Cult Leader",
+        location: "Dragon Shrine",
+        description: "A fanatical dragonborn sorcerer who channels the power of Tiamat. He seeks dragon eggs and ancient draconic artifacts.",
+        questGiver: true,
+        factionAffiliation: "Cult of the Dragon"
     }
 ];
