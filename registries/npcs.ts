@@ -112,31 +112,5 @@ export const NPCS_DB: NPC[] = [
         location: "Stormwatch Harbor",
         description: "A quick-smiling merchant who outfits crews with ropes, lanterns, and navigation gear.",
         shopkeeper: true
-    },
-    {
-        id: 'master_shipwright_arden',
-        name: "Arden Keelwright",
-        role: "Master Shipwright",
-        location: "Shipwright's Yard",
-        description: "A meticulous builder known for seaworthy hulls and no-nonsense advice about storms and repairs.",
-        questGiver: true,
-        shopkeeper: true,
-        factionAffiliation: "Stormwatch Mariners"
-    },
-    {
-        id: 'market_factor_seren',
-        name: "Seren Gull",
-        role: "Market Factor",
-        location: "Breakwater Market",
-        description: "A sharp-eyed broker who keeps the market humming with fair deals and sharper gossip.",
-        shopkeeper: true
-    },
-    {
-        id: 'salvager_brine',
-        name: "Old Brine",
-        role: "Salvager Captain",
-        location: "Stormwatch Docks",
-        description: "A weathered salvager who knows every wreck within a day's sail and the dangers that guard them.",
-        questGiver: true
     }
 ];

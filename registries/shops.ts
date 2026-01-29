@@ -110,36 +110,6 @@ export const SHOPS_DB: ShopData[] = [
         ]
     },
     {
-        id: 'breakwater_stalls',
-        name: "Breakwater Stalls",
-        description: "Open-air stalls selling provisions, charts, and oddities traded in from distant ports.",
-        type: 'general',
-        inventory: [
-            { itemId: 'ration', quantity: 12 },
-            { itemId: 'waterskin', quantity: 6 },
-            { itemId: 'dried_meat', quantity: 6 },
-            { itemId: 'sea_chart', quantity: 4 },
-            { itemId: 'signal_flare', quantity: 5 },
-            { itemId: 'small_knife', quantity: 2 },
-            { itemId: 'lucky_charm', quantity: 2 }
-        ]
-    },
-    {
-        id: 'shipwrights_guild',
-        name: "Keelwright's Guild",
-        description: "A workshop storefront supplying ship parts, repair kits, and specialized maritime tools.",
-        type: 'weapon',
-        inventory: [
-            { itemId: 'harpoon', quantity: 2 },
-            { itemId: 'shipwright_tools', quantity: 2 },
-            { itemId: 'rope_50ft', quantity: 4 },
-            { itemId: 'wood_scrap', quantity: 8 },
-            { itemId: 'iron_ingot', quantity: 4 },
-            { itemId: 'storm_lantern', quantity: 2 },
-            { itemId: 'weighted_net', quantity: 3 }
-        ]
-    },
-    {
         id: 'curiosities',
         name: "Curiosities & Oddities",
         description: "A dusty shop filled with strange artifacts, unusual trinkets, and forgotten relics.",
