@@ -3,6 +3,7 @@ import { Enemy } from '../types';
 export const ENEMIES_DB: Enemy[] = [
     // === CR 0 - 1/4 (Weak Enemies) ===
     { id: 'rat', name: "Giant Rat", type: "beast", challenge: 0.125, hp: 7, hpMax: 7, ac: 12, damageRoll: "1d4", speed: 30, xp: 25, loot: ['ration'], description: "A dog-sized rat with mange-ridden fur and gleaming red eyes." },
+    { id: 'wild_boar', name: "Wild Boar", type: "beast", challenge: 0.25, hp: 11, hpMax: 11, ac: 11, damageRoll: "1d6+1", speed: 40, xp: 50, abilities: ["Relentless Charge"], loot: ['dried_meat'], description: "A bristling boar with sharp tusks and a temper to match." },
     { id: 'bat_swarm', name: "Swarm of Bats", type: "beast", challenge: 0.25, hp: 22, hpMax: 22, ac: 12, damageRoll: "2d4", speed: 30, xp: 50, resistances: ["bludgeoning", "piercing", "slashing"], description: "A writhing cloud of screeching bats." },
     { id: 'goblin', name: "Goblin", type: "humanoid", challenge: 0.25, hp: 7, hpMax: 7, ac: 15, damageRoll: "1d6+2", speed: 30, xp: 50, abilities: ["Nimble Escape"], loot: ['dagger_standard', 'ration'], description: "A small, green-skinned creature with sharp teeth and cunning eyes." },
     { id: 'kobold', name: "Kobold", type: "humanoid", challenge: 0.125, hp: 5, hpMax: 5, ac: 12, damageRoll: "1d4+2", speed: 30, xp: 25, abilities: ["Pack Tactics", "Sunlight Sensitivity"], loot: ['dagger_standard'], description: "A small reptilian humanoid with a yipping voice." },
@@ -21,6 +22,7 @@ export const ENEMIES_DB: Enemy[] = [
     { id: 'ghoul', name: "Ghoul", type: "undead", challenge: 1, hp: 22, hpMax: 22, ac: 12, damageRoll: "2d6+2", speed: 30, xp: 200, immunities: ["poison", "charmed", "exhaustion"], abilities: ["Paralyzing Touch"], description: "An undead creature that feeds on the flesh of corpses." },
     { id: 'specter', name: "Specter", type: "undead", challenge: 1, hp: 22, hpMax: 22, ac: 12, damageRoll: "3d6", speed: 50, xp: 200, immunities: ["necrotic", "poison"], resistances: ["acid", "cold", "fire", "lightning", "thunder"], abilities: ["Life Drain", "Incorporeal Movement"], description: "A hateful spirit bound to the material world by rage." },
     { id: 'harpy', name: "Harpy", type: "monstrosity", challenge: 1, hp: 38, hpMax: 38, ac: 11, damageRoll: "2d4+1", speed: 40, xp: 200, abilities: ["Luring Song"], description: "A winged creature with a woman's face and a vulture's body." },
+    { id: 'sahuagin', name: "Sahuagin", type: "humanoid", challenge: 1, hp: 22, hpMax: 22, ac: 14, damageRoll: "1d8+2", speed: 30, xp: 200, abilities: ["Blood Frenzy", "Amphibious"], loot: ['trident_fish', 'storm_lantern'], description: "A fish-folk raider with jagged fins and a hunger for surface prey." },
     { id: 'drowned_sailor', name: "Drowned Sailor", type: "undead", challenge: 1, hp: 30, hpMax: 30, ac: 12, damageRoll: "1d8+2", speed: 20, xp: 200, immunities: ["poison"], resistances: ["cold"], abilities: ["Waterlogged Grip"], loot: ['storm_lantern', 'ration'], description: "A sodden corpse animated by brine and resentment, clutching rusted gear." },
  
     // === CR 2-3 (Challenging Enemies) ===
