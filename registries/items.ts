@@ -17,6 +17,7 @@ export const ITEMS_DB: Item[] = [
     { id: 'hammer_standard', name: "Hammer", type: "weapon", rarity: "common", slot: "mainHand", damageRoll: "1d8", weight: 2, value: 1500, description: "A warhammer, excellent for crushing blows." },
     { id: 'scimitar_standard', name: "Scimitar", type: "weapon", rarity: "common", slot: "mainHand", damageRoll: "1d6", weight: 3, value: 2500, description: "A curved sword, favored by skirmishers." },
     { id: 'spear_standard', name: "Spear", type: "weapon", rarity: "common", slot: "mainHand", damageRoll: "1d6", weight: 3, value: 100, description: "A simple thrusting weapon." },
+    { id: 'harpoon', name: "Harpoon", type: "weapon", rarity: "common", slot: "mainHand", damageRoll: "1d8", weight: 5, value: 1800, description: "A barbed weapon designed for hauling sea beasts or foes from the surf." },
     { id: 'crossbow_standard', name: "Crossbow", type: "weapon", rarity: "common", slot: "mainHand", twoHanded: true, damageRoll: "1d8", weight: 5, value: 2500, description: "A light crossbow for ranged combat." },
     { id: 'small_knife', name: "Small Knife", type: "weapon", rarity: "common", slot: "mainHand", damageRoll: "1d4", weight: 0.5, value: 100, description: "A basic utility knife, not meant for combat but can be used as a last resort." },
     { id: 'belaying_pin', name: "Belaying Pin", type: "weapon", rarity: "common", slot: "mainHand", damageRoll: "1d4", weight: 2, value: 50, description: "A heavy wooden pin used on ships, surprisingly effective in a brawl." },
