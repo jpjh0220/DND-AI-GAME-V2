@@ -1,0 +1,44 @@
+import { Location } from '../types';
+
+export const LOCATIONS_DB: Location[] = [
+    // === Starting Areas ===
+    { id: 'willowmere', name: "Willowmere Village", type: "town", description: "A peaceful farming village nestled in rolling hills, known for its warm hospitality and excellent ale.", connections: ['crossroads', 'whispering_woods', 'millbrook_farm'], npcs: ['elder_mira', 'blacksmith_thorn'], shopIds: ['general_store', 'tavern'], dangerLevel: 0, monsters: [] },
+    { id: 'crossroads', name: "The Crossroads", type: "landmark", description: "A well-traveled intersection where four roads meet, marked by an ancient stone milestone.", connections: ['willowmere', 'ravenshollow', 'duskfall_ruins', 'merchant_pass'], monsters: ['goblin', 'kobold', 'wolf'], dangerLevel: 1 },
+    { id: 'millbrook_farm', name: "Millbrook Farm", type: "landmark", description: "A prosperous farmstead with golden wheat fields and a creaking windmill.", connections: ['willowmere', 'whispering_woods'], monsters: ['rat', 'wolf'], dangerLevel: 1 },
+ 
+    // === Wilderness ===
+    { id: 'whispering_woods', name: "Whispering Woods", type: "wilderness", description: "An ancient forest where the trees seem to whisper secrets. Sunlight barely penetrates the dense canopy.", connections: ['willowmere', 'millbrook_farm', 'druid_grove', 'spider_hollow'], monsters: ['wolf', 'dire_wolf', 'giant_spider', 'owlbear'], dangerLevel: 3 },
+    { id: 'spider_hollow', name: "Spider Hollow", type: "dungeon", description: "A web-choked ravine infested with giant spiders of all sizes.", connections: ['whispering_woods'], monsters: ['giant_spider'], dangerLevel: 4 },
+    { id: 'druid_grove', name: "Druid's Grove", type: "temple", description: "A sacred clearing where druids commune with nature spirits around a moonlit pool.", connections: ['whispering_woods'], npcs: ['archdruid_oak'], shopIds: ['apothecary'], dangerLevel: 1, monsters: [] },
+    { id: 'merchant_pass', name: "Merchant's Pass", type: "wilderness", description: "A mountain road frequented by traders, though bandits lurk in the rocky outcrops.", connections: ['crossroads', 'ironhold', 'bandit_camp'], monsters: ['goblin', 'hobgoblin', 'bugbear'], dangerLevel: 3 },
+    { id: 'bandit_camp', name: "Bandit Camp", type: "dungeon", description: "A hidden encampment where outlaws count their ill-gotten gains.", connections: ['merchant_pass'], monsters: ['hobgoblin', 'bugbear'], dangerLevel: 4 },
+ 
+    // === Towns & Cities ===
+    { id: 'ravenshollow', name: "Ravenshollow", type: "town", description: "A fog-shrouded town on the edge of cursed marshlands, its inhabitants wary of strangers.", connections: ['crossroads', 'marshes_of_sorrow', 'raven_manor'], npcs: ['mayor_corvus', 'witch_elara'], shopIds: ['apothecary', 'curiosities'], dangerLevel: 2, monsters: [] },
+    { id: 'ironhold', name: "Ironhold Citadel", type: "castle", description: "A dwarven fortress carved into the mountainside, its forges burning day and night.", connections: ['merchant_pass', 'deep_mines', 'frozen_peaks'], npcs: ['king_thorin', 'blacksmith_thorn'], shopIds: ['dwarven_armory', 'gem_merchant'], dangerLevel: 1, monsters: [] },
+    { id: 'silverspire', name: "Silverspire City", type: "town", description: "The gleaming capital city, its towers reaching toward the heavens, center of magic and commerce.", connections: ['kings_road', 'mage_academy', 'noble_quarter'], npcs: ['archmage_vexis', 'queen_alara'], shopIds: ['grand_bazaar', 'enchanter', 'royal_armory'], dangerLevel: 0, monsters: [] },
+ 
+    // === Dungeons & Ruins ===
+    { id: 'duskfall_ruins', name: "Duskfall Ruins", type: "ruin", description: "Crumbling remains of an ancient elven city, now home to the restless dead.", connections: ['crossroads', 'catacombs'], monsters: ['skeleton', 'zombie', 'ghost', 'wight'], dangerLevel: 4 },
+    { id: 'catacombs', name: "The Catacombs", type: "dungeon", description: "Endless tunnels beneath Duskfall where the dead refuse to stay buried.", connections: ['duskfall_ruins', 'lich_sanctum'], monsters: ['skeleton', 'zombie', 'ghoul', 'ghast', 'wraith'], dangerLevel: 6 },
+    { id: 'lich_sanctum', name: "Lich's Sanctum", type: "dungeon", description: "The hidden phylactery chamber of an ancient lich, pulsing with dark energy.", connections: ['catacombs'], monsters: ['lich', 'wraith', 'flameskull'], dangerLevel: 10 },
+    { id: 'raven_manor', name: "Raven Manor", type: "dungeon", description: "A decrepit mansion where a vampire lord holds court over the damned.", connections: ['ravenshollow'], monsters: ['vampire_spawn', 'ghost', 'specter'], dangerLevel: 6 },
+    { id: 'marshes_of_sorrow', name: "Marshes of Sorrow", type: "wilderness", description: "A fetid swamp where will-o-wisps lead travelers to watery graves.", connections: ['ravenshollow', 'hag_lair', 'lizardfolk_village'], monsters: ['zombie', 'ghoul', 'shadow'], dangerLevel: 5 },
+    { id: 'hag_lair', name: "Hag's Lair", type: "dungeon", description: "A twisted hovel where a coven of hags brew terrible curses.", connections: ['marshes_of_sorrow'], monsters: ['harpy', 'ghast'], dangerLevel: 5 },
+ 
+    // === Mountain & Underground ===
+    { id: 'deep_mines', name: "Deep Mines", type: "dungeon", description: "Abandoned dwarven mines that delved too deep, awakening ancient horrors.", connections: ['ironhold', 'underdark_gate'], monsters: ['kobold', 'gargoyle', 'basilisk'], dangerLevel: 5 },
+    { id: 'underdark_gate', name: "Underdark Gate", type: "dungeon", description: "A yawning portal to the lightless depths below, guarded by aberrations.", connections: ['deep_mines'], monsters: ['mind_flayer', 'beholder'], dangerLevel: 9 },
+    { id: 'frozen_peaks', name: "Frozen Peaks", type: "wilderness", description: "Treacherous mountain summits where frost giants make their homes.", connections: ['ironhold', 'frost_giant_hold', 'dragon_eyrie'], monsters: ['wolf', 'dire_wolf', 'frost_giant'], dangerLevel: 7 },
+    { id: 'frost_giant_hold', name: "Frost Giant Hold", type: "castle", description: "An ice fortress carved from a glacier, home to a frost giant jarl.", connections: ['frozen_peaks'], monsters: ['frost_giant', 'werewolf'], dangerLevel: 8 },
+    { id: 'dragon_eyrie', name: "Dragon's Eyrie", type: "dungeon", description: "A mountain peak lair where an ancient dragon broods over its hoard.", connections: ['frozen_peaks'], monsters: ['adult_dragon_red', 'young_dragon_black'], dangerLevel: 10 },
+ 
+    // === Special Locations ===
+    { id: 'mage_academy', name: "Arcane Academy", type: "guild", description: "A floating tower where aspiring wizards learn the secrets of magic.", connections: ['silverspire'], npcs: ['archmage_vexis'], shopIds: ['enchanter', 'spell_components', 'scroll_shop'], dangerLevel: 0, monsters: [] },
+    { id: 'temple_of_light', name: "Temple of the Dawn", type: "temple", description: "A grand cathedral dedicated to the sun god, its spires catching the first light of day.", connections: ['silverspire', 'celestial_sanctum'], npcs: [], dangerLevel: 0, monsters: [] },
+    { id: 'celestial_sanctum', name: "Celestial Sanctum", type: "temple", description: "A hidden holy site where clerics commune with celestial beings.", connections: ['temple_of_light'], dangerLevel: 2, monsters: [] },
+    { id: 'thieves_guild', name: "Shadow Market", type: "guild", description: "A secret underground bazaar where anything can be bought for the right price.", connections: ['silverspire'], npcs: ['guildmaster_shade'], shopIds: ['black_market', 'poison_vendor'], dangerLevel: 3, monsters: [] },
+    { id: 'arena', name: "The Colosseum", type: "landmark", description: "A grand arena where warriors test their mettle against beasts and each other.", connections: ['silverspire'], npcs: ['arena_master'], monsters: ['ogre', 'troll', 'manticore'], dangerLevel: 4 },
+    { id: 'plane_of_fire', name: "Plane of Fire", type: "dungeon", description: "A portal to the elemental plane of fire, where salamanders and efreet dwell.", connections: ['mage_academy'], monsters: ['salamander', 'fire_giant'], dangerLevel: 8 },
+    { id: 'abyss_gate', name: "Abyssal Rift", type: "dungeon", description: "A tear in reality leading to the demonic Abyss, sealed by ancient wards.", connections: ['catacombs'], monsters: ['bone_devil', 'wraith'], dangerLevel: 10 },
+];
