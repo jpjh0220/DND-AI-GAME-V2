@@ -109,5 +109,107 @@ export const ENCOUNTERS_DB: Encounter[] = [
         challengeRating: 2,
         enemyIds: ['sahuagin', 'sahuagin'], // Assuming 'sahuagin' enemy exists
         rewards: { xp: 300, currency: 75 }
+    },
+
+    // === Coastal Encounters ===
+    {
+        id: 'coast_drowned_sailors',
+        name: "Drowned Sailors",
+        type: 'combat',
+        description: "A sudden fog rolls in, and waterlogged figures shamble from the surf, dragging rusted anchors behind them.",
+        challengeRating: 1,
+        enemyIds: ['drowned_sailor', 'drowned_sailor'],
+        rewards: { xp: 180, currency: 40, itemIds: ['storm_lantern'] }
+    },
+    {
+        id: 'coast_reef_stalker',
+        name: "Reef Stalker",
+        type: 'combat',
+        description: "The tide pools shimmer unnaturally before a reef stalker lunges from the rocks, teeth flashing like coral blades.",
+        challengeRating: 2,
+        enemyIds: ['reef_stalker'],
+        rewards: { xp: 300, currency: 60, itemIds: ['mariners_compass'] }
+    },
+    {
+        id: 'coast_lighthouse_signal',
+        name: "The Lighthouse Signal",
+        type: 'discovery',
+        description: "From the cliffs, a distant lighthouse flares a warning pattern. Someone is signaling for help across the stormy channel.",
+        rewards: { xp: 50, itemIds: ['storm_lantern'] },
+        choices: [
+            { id: 'answer_signal', label: 'Answer the signal', intent: 'discovery' },
+            { id: 'mark_on_map', label: 'Mark the pattern on your map', intent: 'discovery' },
+            { id: 'ignore_signal', label: 'Ignore it for now', intent: 'travel' }
+        ]
+    },
+    {
+        id: 'coast_crab_scavengers',
+        name: "Crab Scavengers",
+        type: 'combat',
+        description: "A tide pool erupts with chittering claws as oversized sand crabs scuttle toward your supplies.",
+        challengeRating: 1,
+        enemyIds: ['sand_crab', 'sand_crab'],
+        rewards: { xp: 120, itemIds: ['dried_meat'] }
+    },
+    {
+        id: 'coast_salvage_cache',
+        name: "Salvage Cache",
+        type: 'discovery',
+        description: "Wedged between rocks lies a barnacle-crusted chest with a faded shipping mark.",
+        rewards: { xp: 60, currency: 80, itemIds: ['sea_chart'] },
+        choices: [
+            { id: 'pry_cache', label: 'Pry it open', intent: 'discovery' },
+            { id: 'haul_cache', label: 'Haul it back to harbor', intent: 'travel' }
+        ]
+    },
+    {
+        id: 'coast_pirate_pressgang',
+        name: "Pirate Pressgang",
+        type: 'combat',
+        description: "A skiff scrapes the shore and a band of pirates rushes in, demanding you join their crew or pay in coin.",
+        challengeRating: 2,
+        enemyIds: ['pirate_raider', 'pirate_raider'],
+        rewards: { xp: 260, currency: 120, itemIds: ['signal_flare'] }
+    },
+    {
+        id: 'coast_reef_serpent',
+        name: "Reef Serpent",
+        type: 'combat',
+        description: "The water churns as a reef serpent lunges from below, coils gleaming with wet sand.",
+        challengeRating: 2,
+        enemyIds: ['reef_serpent'],
+        rewards: { xp: 280, itemIds: ['harpoon'] }
+    },
+    {
+        id: 'coast_kelp_wraith',
+        name: "Kelp Wraith",
+        type: 'combat',
+        description: "A spectral figure rises from the kelp, dragging strands of seaweed like chains.",
+        challengeRating: 2,
+        enemyIds: ['kelp_wraith'],
+        rewards: { xp: 260, currency: 70, itemIds: ['storm_lantern'] }
+    },
+    {
+        id: 'coast_stormwatch_patrol',
+        name: "Stormwatch Patrol",
+        type: 'social',
+        description: "Harbor guards wave you down, checking for smugglers and warning of pirate sails near the reef.",
+        rewards: { xp: 40 },
+        choices: [
+            { id: 'share_info', label: 'Share what you know', intent: 'social' },
+            { id: 'offer_help', label: 'Offer to help the patrol', intent: 'social' },
+            { id: 'move_along', label: 'Move along quietly', intent: 'travel' }
+        ]
+    },
+    {
+        id: 'coast_shipwright_request',
+        name: "Shipwright's Request",
+        type: 'discovery',
+        description: "A shipwright calls for extra hands to haul a damaged hull into the yard before the tide shifts.",
+        rewards: { xp: 45, itemIds: ['shipwright_tools'] },
+        choices: [
+            { id: 'assist_shipwright', label: 'Lend your strength', intent: 'discovery' },
+            { id: 'decline_shipwright', label: 'Decline politely', intent: 'travel' }
+        ]
     }
 ];
