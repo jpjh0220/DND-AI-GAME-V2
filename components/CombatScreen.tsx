@@ -102,7 +102,9 @@ export const CombatScreen: React.FC<CombatScreenProps> = ({ player, enemy, onAct
                     cur={enemy.hp} 
                     max={enemy.hpMax} 
                     label="Foeman Health" 
-                    icon={<Heart size={8}/>} 
+                    icon={<Heart size={8}/>}
+                    warningThreshold={0.35}
+                    criticalThreshold={0.2}
                 />
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth" ref={scrollRef}>
