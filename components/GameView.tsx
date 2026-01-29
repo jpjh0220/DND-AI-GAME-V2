@@ -8,7 +8,7 @@
 
 
 import React from 'react';
-import { Send, Dices, MapPin, Swords, MessageSquare, ShoppingBag, Moon, Settings, Zap, Wind, User, Trophy, ScrollText, Globe } from 'lucide-react';
+import { Send, Dices, MapPin, Swords, MessageSquare, ShoppingBag, Moon, Settings, Zap, Wind, User, Trophy, ScrollText, Globe, Hammer, Compass } from 'lucide-react';
 import { LogEntry, Choice, NPC } from '../types';
 import { AudioPlayer } from './ui';
 
@@ -33,6 +33,8 @@ export const GameView: React.FC<GameViewProps> = ({ log, choices, processing, in
       case 'social': return { style: 'border-sky-500/50 bg-sky-900/20 text-sky-300', icon: <MessageSquare size={14}/> };
       case 'buy': return { style: 'border-amber-500/50 bg-amber-900/20 text-amber-300', icon: <ShoppingBag size={14}/> };
       case 'rest': return { style: 'border-indigo-500/50 bg-indigo-900/20 text-indigo-300', icon: <Moon size={14}/> };
+      case 'craft': return { style: 'border-fuchsia-500/50 bg-fuchsia-900/20 text-fuchsia-300', icon: <Hammer size={14}/> };
+      case 'discovery': return { style: 'border-teal-500/50 bg-teal-900/20 text-teal-300', icon: <Compass size={14}/> };
       case 'system': return { style: 'border-slate-600 bg-slate-800 text-slate-300', icon: <Settings size={14}/> };
       default: return { style: 'border-slate-700 bg-slate-800 text-slate-300', icon: null };
     }
@@ -129,20 +131,36 @@ export const GameView: React.FC<GameViewProps> = ({ log, choices, processing, in
         <div className="flex gap-2 mb-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {choices.map(c => {
             const config = getIntentConfig(c.intent);
-            const canAfford = playerResources.mp >= (c.manaCost || 0) && playerResources.st >= (c.staminaCost || 0);
+            const manaCost = c.manaCost || 0;
+            const staminaCost = c.staminaCost || 0;
+            const missingMana = Math.max(0, manaCost - playerResources.mp);
+            const missingStamina = Math.max(0, staminaCost - playerResources.st);
+            const canAfford = missingMana === 0 && missingStamina === 0;
+            const affordanceNote = !canAfford
+              ? `Need ${missingMana ? `${missingMana} MP` : ''}${missingMana && missingStamina ? ' and ' : ''}${missingStamina ? `${missingStamina} ST` : ''}`
+              : undefined;
             return (
               <button 
                 key={c.id} 
                 disabled={processing || !canAfford} 
                 onClick={() => onAction(c.label, c)} 
-                className={`group relative flex items-center gap-2 whitespace-nowrap px-4 py-2.5 border rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:grayscale ${config.style}`}
+                title={affordanceNote}
+                className={`group relative flex items-center gap-2 whitespace-nowrap px-4 py-2.5 border rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 disabled:grayscale ${config.style}`}
               >
                 {config.icon}
                 {c.label}
                 {(c.manaCost || c.staminaCost) && (
                     <div className="absolute -top-2 -right-1 flex gap-1">
-                        {c.manaCost && <div className="bg-blue-600 text-[8px] text-white px-1 rounded flex items-center gap-0.5 border border-blue-400 shadow-lg"><Zap size={6}/>{c.manaCost}</div>}
-                        {c.staminaCost && <div className="bg-emerald-600 text-[8px] text-white px-1 rounded flex items-center gap-0.5 border border-emerald-400 shadow-lg"><Wind size={6}/>{c.staminaCost}</div>}
+                        {manaCost > 0 && (
+                          <div className={`text-[8px] text-white px-1 rounded flex items-center gap-0.5 border shadow-lg ${missingMana ? 'bg-red-600 border-red-400' : 'bg-blue-600 border-blue-400'}`}>
+                            <Zap size={6}/>{manaCost}
+                          </div>
+                        )}
+                        {staminaCost > 0 && (
+                          <div className={`text-[8px] text-white px-1 rounded flex items-center gap-0.5 border shadow-lg ${missingStamina ? 'bg-red-600 border-red-400' : 'bg-emerald-600 border-emerald-400'}`}>
+                            <Wind size={6}/>{staminaCost}
+                          </div>
+                        )}
                     </div>
                 )}
               </button>
