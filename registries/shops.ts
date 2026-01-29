@@ -94,6 +94,106 @@ export const SHOPS_DB: ShopData[] = [
         ]
     },
     {
+        id: 'dockside_outfitter',
+        name: "Dockside Outfitter",
+        description: "A salty storefront packed with ropes, lanterns, and weatherproof gear for sea-bound expeditions.",
+        type: 'general',
+        inventory: [
+            { itemId: 'ration', quantity: 8 },
+            { itemId: 'waterskin', quantity: 5 },
+            { itemId: 'rope_50ft', quantity: 4 },
+            { itemId: 'storm_lantern', quantity: 3 },
+            { itemId: 'mariners_compass', quantity: 2 },
+            { itemId: 'belaying_pin', quantity: 2 },
+            { itemId: 'cloak_saltward', quantity: 2 },
+            { itemId: 'pot_water_breathing', quantity: 1 }
+        ]
+    },
+    {
+        id: 'breakwater_stalls',
+        name: "Breakwater Stalls",
+        description: "Open-air stalls selling provisions, charts, and oddities traded in from distant ports.",
+        type: 'general',
+        inventory: [
+            { itemId: 'ration', quantity: 12 },
+            { itemId: 'waterskin', quantity: 6 },
+            { itemId: 'dried_meat', quantity: 6 },
+            { itemId: 'sea_chart', quantity: 4 },
+            { itemId: 'signal_flare', quantity: 5 },
+            { itemId: 'small_knife', quantity: 2 },
+            { itemId: 'lucky_charm', quantity: 2 }
+        ]
+    },
+    {
+        id: 'shipwrights_guild',
+        name: "Keelwright's Guild",
+        description: "A workshop storefront supplying ship parts, repair kits, and specialized maritime tools.",
+        type: 'weapon',
+        inventory: [
+            { itemId: 'harpoon', quantity: 2 },
+            { itemId: 'shipwright_tools', quantity: 2 },
+            { itemId: 'rope_50ft', quantity: 4 },
+            { itemId: 'wood_scrap', quantity: 8 },
+            { itemId: 'iron_ingot', quantity: 4 },
+            { itemId: 'storm_lantern', quantity: 2 },
+            { itemId: 'weighted_net', quantity: 3 }
+        ]
+    },
+    {
+        id: 'harbor_services',
+        name: "Harbor Services",
+        description: "A practical stall offering ship maintenance supplies and navigation gear.",
+        type: 'general',
+        inventory: [
+            { itemId: 'hull_repair_kit', quantity: 3 },
+            { itemId: 'rigging_oil', quantity: 6 },
+            { itemId: 'anchor_chain', quantity: 2 },
+            { itemId: 'navigation_sextant', quantity: 1 },
+            { itemId: 'sea_chart', quantity: 4 },
+            { itemId: 'pitch', quantity: 6 },
+            { itemId: 'ship_planks', quantity: 4 }
+        ]
+    },
+    {
+        id: 'salvagers_coop',
+        name: "Salvagers' Co-op",
+        description: "Recovered relics and salvage goods from the shoals, sold by veteran divers.",
+        type: 'special',
+        inventory: [
+            { itemId: 'sea_glass', quantity: 6 },
+            { itemId: 'pearl_shard', quantity: 2 },
+            { itemId: 'reef_coral', quantity: 3 },
+            { itemId: 'kelp_fiber', quantity: 5 },
+            { itemId: 'storm_lantern', quantity: 2 },
+            { itemId: 'harpoon', quantity: 1 }
+        ]
+    },
+    {
+        id: 'tideglass_curios',
+        name: "Tideglass Curios",
+        description: "A boutique of sea-glass charms and tide-worn curiosities.",
+        type: 'special',
+        inventory: [
+            { itemId: 'sea_glass', quantity: 6 },
+            { itemId: 'siren_scale', quantity: 1 },
+            { itemId: 'lucky_charm', quantity: 3 },
+            { itemId: 'brooch_shielding', quantity: 1 }
+        ]
+    },
+    {
+        id: 'smugglers_den',
+        name: "Smuggler's Den",
+        description: "A shadowy counter for illicit coastal goods and hush-money trades.",
+        type: 'special',
+        inventory: [
+            { itemId: 'signal_flare', quantity: 4 },
+            { itemId: 'dagger_standard', quantity: 2 },
+            { itemId: 'tar_resin', quantity: 4 },
+            { itemId: 'sea_chart', quantity: 2 },
+            { itemId: 'thieves_tools', quantity: 1 }
+        ]
+    },
+    {
         id: 'curiosities',
         name: "Curiosities & Oddities",
         description: "A dusty shop filled with strange artifacts, unusual trinkets, and forgotten relics.",
