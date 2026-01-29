@@ -60,5 +60,18 @@ export const FACTIONS_DB: FactionData[] = [
             { minRep: 50, effect: "Receive natural remedies and guidance in the wilderness." },
             { minRep: 100, effect: "Gain access to hidden paths and the aid of powerful nature spirits." }
         ]
+    },
+    {
+        id: 'stormwatch_mariners',
+        name: "Stormwatch Mariners",
+        description: "A proud coalition of captains, shipwrights, and harbormasters who keep the coastal trade lanes safe and the harbor supplied.",
+        alignment: "Neutral Good",
+        headquarters: "Stormwatch Harbor",
+        ranks: ["Deckhand", "Quartermaster", "First Mate", "Harbor Captain", "Fleet Admiral"],
+        reputationEffects: [
+            { minRep: 25, effect: "Access to harbor services and discounted repairs." },
+            { minRep: 60, effect: "Priority contracts for salvage and escort missions." },
+            { minRep: 100, effect: "Unlock rare maritime gear and trusted crew support." }
+        ]
     }
 ];
