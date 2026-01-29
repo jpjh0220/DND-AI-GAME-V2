@@ -6,7 +6,7 @@ import { Player } from '../types';
 // FIX: Corrected import path to point to the index file within the directory.
 import { RACES, CLASSES, BACKGROUNDS } from '../registries/index';
 // FIX: Corrected import path to point to the index file within the directory.
-import { getMod, getSpellcastingAbility, ALL_SKILLS, calculateXpToNextLevel } from '../systems/index';
+import { getMod, getSpellcastingAbility, ALL_SKILLS, calculateXpToNextLevel, calculateEncumbrance, calculateMaxCarry } from '../systems/index';
 import { SheetSection } from './ui';
 
 interface CharacterSheetProps { 
@@ -29,6 +29,9 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ player, onClose,
     const spellPower = getMod(player.stats[spellcastingAbility]);
     const weaponPower = Math.max(getMod(player.stats.str), getMod(player.stats.dex));
     const xpToNext = calculateXpToNextLevel(player.level);
+    const currentCarry = calculateEncumbrance(player.inventory);
+    const maxCarry = calculateMaxCarry(player.stats.str);
+    const isEncumbered = currentCarry > maxCarry;
 
     const handleGenerate = async () => {
         if (!onGeneratePortrait) return;
@@ -207,6 +210,15 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ player, onClose,
                         <div className="flex justify-between items-center bg-slate-950 p-2 rounded-lg border border-slate-800">
                             <span className="text-xs text-slate-400">Exhaustion</span>
                             <span className={`text-xs font-mono font-bold ${player.exhaustion > 0 ? "text-red-400" : "text-slate-500"}`}>Level {player.exhaustion} / 6</span>
+                        </div>
+                        <div className="flex flex-col gap-1 bg-slate-950 p-2 rounded-lg border border-slate-800">
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-400">Encumbrance</span>
+                                <span className={`text-xs font-mono font-bold ${isEncumbered ? "text-orange-400" : "text-slate-500"}`}>{currentCarry} / {maxCarry} lb</span>
+                            </div>
+                            <span className={`text-[10px] ${isEncumbered ? "text-orange-300" : "text-slate-600"}`}>
+                                {isEncumbered ? "Encumbered: travel/combat stamina costs are doubled." : "Unencumbered: no stamina penalties."}
+                            </span>
                         </div>
                         <div className="flex justify-between items-center bg-slate-950 p-2 rounded-lg border border-slate-800">
                             <span className="text-xs text-slate-400">Days without Food</span>
