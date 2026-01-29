@@ -4,34 +4,54 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import { Player, World, Enemy, Item } from '../types';
 import { calculateEncumbrance, calculateMaxCarry } from '../systems/calculations';
 import { ITEMS_DB, LOCATIONS_DB, ENEMIES_DB, ACHIEVEMENTS_DB, NPCS_DB, SHOPS_DB, ENCOUNTERS_DB } from '../registries/index';
+import { RetrievedMemory, formatRetrievedMemories } from '../systems/memory';
+import { GMMode, determineGMMode, getSystemPrompt } from '../systems/prompts';
 
 const MODEL_IMAGE = "gemini-2.5-flash-image";
 const MODEL_TTS = "gemini-2.5-flash-preview-tts";
 
 export const buildPrompt = (
-    player: Player, 
-    world: World, 
-    actionText: string, 
+    player: Player,
+    world: World,
+    actionText: string,
     enemy?: Enemy | null,
     skillCheckResult?: { skill: string; success: boolean },
-    isWorldEventTriggered: boolean = false // Now implies a roll on ENCOUNTERS_DB
+    isWorldEventTriggered: boolean = false, // Now implies a roll on ENCOUNTERS_DB
+    retrievedMemories: RetrievedMemory[] = [] // RAG: relevant past memories
 ): string => {
     const activeQuests = player.quests?.filter(q => q.status === 'active').map(q => q.title).join(', ') || 'None';
     const playerWeaponDamage = player.equipment.mainHand?.damageRoll || "1d4";
     const playerFeats = player.feats?.join(', ') || 'None';
     const playerStatusEffects = player.statusEffects.map(se => se.name).join(', ') || 'None';
-    
+
+    // --- Prompt Chaining: Select specialized GM mode ---
+    const gmMode: GMMode = determineGMMode(
+        !!enemy,
+        undefined, // choice intent is resolved before prompt building
+        !!skillCheckResult,
+        !!player.activeNPC,
+        isWorldEventTriggered
+    );
+    const systemPrompt = getSystemPrompt(gmMode);
+
+    // --- RAG: Format retrieved memories for context injection ---
+    const memoryContext = formatRetrievedMemories(retrievedMemories);
+
     // Summary of world geography to guide the DM
-    const worldAtlas = LOCATIONS_DB.map(loc => 
+    const worldAtlas = LOCATIONS_DB.map(loc =>
       `${loc.name} (${loc.type}, Danger: ${loc.dangerLevel}): ${loc.description}. Connected to: ${loc.connections?.join(', ') || 'None'}. Available NPCs: ${loc.npcs?.map(id => NPCS_DB.find(n => n.id === id)?.name || id).join(', ') || 'None'}. Available Shops: ${loc.shopIds?.map(id => SHOPS_DB.find(s => s.id === id)?.name || id).join(', ') || 'None'}.`
     ).join('\n');
 
-    let prompt = `Role: D&D 5E DM. Output JSON ONLY.
+    let prompt = `${systemPrompt}
+
+      IMPORTANT: Output JSON ONLY. No markdown, no code fences.
+      GM Mode: ${gmMode.toUpperCase()}
+
       World: Day ${world.day}, ${world.hour}:00. Weather: ${world.weather}.
       Current Location Facts: ${(world?.facts || []).join(", ")}.
       Geography & Atlas:
       ${worldAtlas}
-
+      ${memoryContext}
       Player: ${player.name} (${player.race} ${player.class}, Lvl ${player.level}).
       HP: ${player.hpCurrent}/${player.hpMax}. MP: ${player.manaCurrent}/${player.manaMax}. ST: ${player.staminaCurrent}/${player.staminaMax}. AC: ${player.ac}.
       Feats: ${playerFeats}.
