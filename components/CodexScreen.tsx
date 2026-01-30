@@ -1,14 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { X, User, Shield, BookOpen, ScrollText } from 'lucide-react';
 import { Player, World } from '../types';
-import { NPCS_DB, FACTIONS_DB, DEITIES_DB, LORE_DB, RUMORS_DB } from '../registries/index';
+import { NPCS_DB, FACTIONS_DB, DEITIES_DB, LORE_DB } from '../registries/index';
 
-type CodexTab = 'npcs' | 'factions' | 'deities' | 'lore' | 'rumors';
+type CodexTab = 'npcs' | 'factions' | 'deities' | 'lore';
 
 export const CodexScreen: React.FC<{player: Player, onClose: () => void}> = ({ player, onClose }) => {
     const [activeTab, setActiveTab] = useState<CodexTab>('npcs');
     const [loreQuery, setLoreQuery] = useState('');
-    const [rumorQuery, setRumorQuery] = useState('');
 
     const knownNPCs = useMemo(() => {
         return player.knownNPCs.map(knownNpc => NPCS_DB.find(dbNpc => dbNpc.id === knownNpc.id) || knownNpc);
@@ -29,18 +28,6 @@ export const CodexScreen: React.FC<{player: Player, onClose: () => void}> = ({ p
             entry.tags?.some(tag => tag.toLowerCase().includes(query))
         ));
     }, [loreQuery]);
-
-    const filteredRumors = useMemo(() => {
-        const query = rumorQuery.trim().toLowerCase();
-        if (!query) return RUMORS_DB;
-        return RUMORS_DB.filter(entry => (
-            entry.title.toLowerCase().includes(query) ||
-            entry.region.toLowerCase().includes(query) ||
-            entry.tone.toLowerCase().includes(query) ||
-            entry.source.toLowerCase().includes(query) ||
-            entry.detail.toLowerCase().includes(query)
-        ));
-    }, [rumorQuery]);
 
     const TabButton = ({ tab, icon, label }: { tab: CodexTab, icon: React.ReactNode, label: string }) => (
         <button 
@@ -66,7 +53,6 @@ export const CodexScreen: React.FC<{player: Player, onClose: () => void}> = ({ p
                 <TabButton tab="factions" icon={<Shield size={16}/>} label="Factions" />
                 <TabButton tab="deities" icon={<ScrollText size={16}/>} label="Deities" />
                 <TabButton tab="lore" icon={<BookOpen size={16}/>} label="Lore" />
-                <TabButton tab="rumors" icon={<BookOpen size={16}/>} label="Rumors" />
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -150,40 +136,6 @@ export const CodexScreen: React.FC<{player: Player, onClose: () => void}> = ({ p
                                     {entry.tags?.map(tag => (
                                         <span key={`${entry.id}-${tag}`} className="bg-slate-800/60 px-2 py-0.5 rounded-full">#{tag}</span>
                                     ))}
-                                </div>
-                            </div>
-                        ))}
-                    </>
-                )}
-
-                {activeTab === 'rumors' && (
-                    <>
-                        <div className="sticky top-0 z-10 bg-slate-950/95 pb-3">
-                            <input
-                                value={rumorQuery}
-                                onChange={(event) => setRumorQuery(event.target.value)}
-                                placeholder="Search rumors..."
-                                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 outline-none"
-                            />
-                            <div className="mt-2 text-[10px] text-slate-500">
-                                Showing {filteredRumors.length} rumors.
-                            </div>
-                        </div>
-                        {filteredRumors.length === 0 && (
-                            <div className="text-center text-slate-500 p-4 border border-dashed border-slate-800 rounded-xl">
-                                No rumors match that search.
-                            </div>
-                        )}
-                        {filteredRumors.map(entry => (
-                            <div key={entry.id} className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-2">
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="font-bold text-white">{entry.title}</div>
-                                    <span className="text-[10px] uppercase tracking-widest text-indigo-400">{entry.tone}</span>
-                                </div>
-                                <p className="text-xs text-slate-400">{entry.detail}</p>
-                                <div className="flex flex-wrap gap-2 text-[10px] text-slate-500">
-                                    <span className="bg-slate-800/60 px-2 py-0.5 rounded-full">Region: {entry.region}</span>
-                                    <span className="bg-slate-800/60 px-2 py-0.5 rounded-full">Source: {entry.source}</span>
                                 </div>
                             </div>
                         ))}
