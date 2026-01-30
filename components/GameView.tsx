@@ -8,7 +8,7 @@
 
 
 import React from 'react';
-import { Send, Dices, MapPin, Swords, MessageSquare, ShoppingBag, Moon, Settings, Zap, Wind, User, Trophy, ScrollText, Globe } from 'lucide-react';
+import { Send, Dices, MapPin, Swords, MessageSquare, ShoppingBag, Moon, Settings, Zap, Wind, User, Trophy, ScrollText, Globe, Hammer, Compass } from 'lucide-react';
 import { LogEntry, Choice, NPC } from '../types';
 import { AudioPlayer } from './ui';
 
@@ -22,9 +22,11 @@ interface GameViewProps {
   scrollRef: React.RefObject<HTMLDivElement>; 
   activeNPC?: NPC | null;
   playerResources: { mp: number; st: number };
+  actionHints: { icon: React.ReactNode; text: string }[];
+  getChoiceCost: (choice: Choice) => { mana: number; stamina: number };
 }
 
-export const GameView: React.FC<GameViewProps> = ({ log, choices, processing, input, setInput, onAction, scrollRef, activeNPC, playerResources }) => {
+export const GameView: React.FC<GameViewProps> = ({ log, choices, processing, input, setInput, onAction, scrollRef, activeNPC, playerResources, actionHints, getChoiceCost }) => {
   
   const getIntentConfig = (intent: string) => {
     switch (intent) {
@@ -33,10 +35,22 @@ export const GameView: React.FC<GameViewProps> = ({ log, choices, processing, in
       case 'social': return { style: 'border-sky-500/50 bg-sky-900/20 text-sky-300', icon: <MessageSquare size={14}/> };
       case 'buy': return { style: 'border-amber-500/50 bg-amber-900/20 text-amber-300', icon: <ShoppingBag size={14}/> };
       case 'rest': return { style: 'border-indigo-500/50 bg-indigo-900/20 text-indigo-300', icon: <Moon size={14}/> };
+      case 'craft': return { style: 'border-fuchsia-500/50 bg-fuchsia-900/20 text-fuchsia-300', icon: <Hammer size={14}/> };
+      case 'discovery': return { style: 'border-teal-500/50 bg-teal-900/20 text-teal-300', icon: <Compass size={14}/> };
       case 'system': return { style: 'border-slate-600 bg-slate-800 text-slate-300', icon: <Settings size={14}/> };
       default: return { style: 'border-slate-700 bg-slate-800 text-slate-300', icon: null };
     }
   };
+
+  const affordabilitySummary = choices.reduce((summary, choice) => {
+    const { mana: manaCost, stamina: staminaCost } = getChoiceCost(choice);
+    const missingMana = Math.max(0, manaCost - playerResources.mp);
+    const missingStamina = Math.max(0, staminaCost - playerResources.st);
+    return {
+      missingMana: Math.max(summary.missingMana, missingMana),
+      missingStamina: Math.max(summary.missingStamina, missingStamina),
+    };
+  }, { missingMana: 0, missingStamina: 0 });
 
   return (
     <div className="absolute inset-0 flex flex-col bg-slate-950 overflow-hidden">
@@ -126,29 +140,78 @@ export const GameView: React.FC<GameViewProps> = ({ log, choices, processing, in
         {processing && <div className="text-xs text-slate-500 italic p-2 animate-pulse">The mists of destiny are shifting...</div>}
       </div>
       <div className="bg-slate-900 border-t border-slate-800 p-3 pb-safe shrink-0">
+        {actionHints.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2 text-[10px] text-slate-400">
+            {actionHints.map((hint, index) => (
+              <div key={`action-hint-${index}`} className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-950/40 px-2 py-1">
+                {hint.icon}
+                <span>{hint.text}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex gap-2 mb-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {choices.map(c => {
             const config = getIntentConfig(c.intent);
-            const canAfford = playerResources.mp >= (c.manaCost || 0) && playerResources.st >= (c.staminaCost || 0);
+            const { mana: manaCost, stamina: staminaCost } = getChoiceCost(c);
+            const missingMana = Math.max(0, manaCost - playerResources.mp);
+            const missingStamina = Math.max(0, staminaCost - playerResources.st);
+            const canAfford = missingMana === 0 && missingStamina === 0;
+            const afterMana = Math.max(0, playerResources.mp - manaCost);
+            const afterStamina = Math.max(0, playerResources.st - staminaCost);
+            const afterDetails = manaCost > 0 || staminaCost > 0
+              ? `After: ${manaCost > 0 ? `MP ${playerResources.mp}→${afterMana}` : ''}${manaCost > 0 && staminaCost > 0 ? ' • ' : ''}${staminaCost > 0 ? `ST ${playerResources.st}→${afterStamina}` : ''}`
+              : 'Free action';
+            const affordanceNote = !canAfford
+              ? `Need ${missingMana ? `${missingMana} MP` : ''}${missingMana && missingStamina ? ' and ' : ''}${missingStamina ? `${missingStamina} ST` : ''}`
+              : undefined;
+            const title = [affordanceNote, afterDetails].filter(Boolean).join(' • ') || undefined;
             return (
               <button 
                 key={c.id} 
                 disabled={processing || !canAfford} 
                 onClick={() => onAction(c.label, c)} 
-                className={`group relative flex items-center gap-2 whitespace-nowrap px-4 py-2.5 border rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:grayscale ${config.style}`}
+                title={title}
+                className={`group relative flex flex-col items-start gap-1 whitespace-nowrap px-4 py-2.5 border rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 disabled:grayscale ${config.style}`}
               >
-                {config.icon}
-                {c.label}
-                {(c.manaCost || c.staminaCost) && (
+                <div className="flex items-center gap-2">
+                  {config.icon}
+                  {c.label}
+                </div>
+                <span className="text-[9px] font-medium text-slate-400 group-disabled:text-slate-500">
+                  {afterDetails}
+                </span>
+                {(manaCost > 0 || staminaCost > 0) && (
                     <div className="absolute -top-2 -right-1 flex gap-1">
-                        {c.manaCost && <div className="bg-blue-600 text-[8px] text-white px-1 rounded flex items-center gap-0.5 border border-blue-400 shadow-lg"><Zap size={6}/>{c.manaCost}</div>}
-                        {c.staminaCost && <div className="bg-emerald-600 text-[8px] text-white px-1 rounded flex items-center gap-0.5 border border-emerald-400 shadow-lg"><Wind size={6}/>{c.staminaCost}</div>}
+                        {manaCost > 0 && (
+                          <div className={`text-[8px] text-white px-1 rounded flex items-center gap-0.5 border shadow-lg ${missingMana ? 'bg-red-600 border-red-400' : 'bg-blue-600 border-blue-400'}`}>
+                            <Zap size={6}/>{manaCost}
+                          </div>
+                        )}
+                        {staminaCost > 0 && (
+                          <div className={`text-[8px] text-white px-1 rounded flex items-center gap-0.5 border shadow-lg ${missingStamina ? 'bg-red-600 border-red-400' : 'bg-emerald-600 border-emerald-400'}`}>
+                            <Wind size={6}/>{staminaCost}
+                          </div>
+                        )}
                     </div>
                 )}
               </button>
             );
           })}
         </div>
+        {(affordabilitySummary.missingMana > 0 || affordabilitySummary.missingStamina > 0) && (
+          <div className="mb-2 text-[10px] text-slate-400">
+            Unavailable actions: need up to
+            {affordabilitySummary.missingMana > 0 && (
+              <span className="ml-1 text-blue-300 font-semibold">{affordabilitySummary.missingMana} MP</span>
+            )}
+            {affordabilitySummary.missingMana > 0 && affordabilitySummary.missingStamina > 0 && <span className="mx-1">/</span>}
+            {affordabilitySummary.missingStamina > 0 && (
+              <span className="text-emerald-300 font-semibold">{affordabilitySummary.missingStamina} ST</span>
+            )}
+            .
+          </div>
+        )}
         <div className="flex gap-2">
           <input className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none" placeholder="Action..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && onAction(input)} disabled={processing}/>
           <button onClick={() => onAction(input)} disabled={processing||!input.trim()} className="p-3 bg-indigo-600 rounded-xl text-white disabled:opacity-50 hover:bg-indigo-500"><Send size={18}/></button>

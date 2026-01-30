@@ -134,6 +134,24 @@ export interface Encounter {
   choices?: Choice[]; // Specific choices for social/discovery
 }
 
+export interface LoreEntry {
+  id: string;
+  title: string;
+  category: string;
+  summary: string;
+  tags?: string[];
+  location?: string;
+}
+
+export interface RumorEntry {
+  id: string;
+  title: string;
+  region: string;
+  tone: string;
+  source: string;
+  detail: string;
+}
+
 
 export interface Player { 
   name: string; 
