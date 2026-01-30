@@ -78,13 +78,18 @@ export default function App() {
     setEnemy(newGameState.enemy);
   }, []);
 
-  const handleLoadGame = useCallback(async (slotId: string) => {
+  const handleLoadGame = useCallback(async (slotId: string, options?: { auto?: boolean }) => {
     const loadedState = loadGameLocal(slotId);
     if (loadedState && loadedState.player) {
       updateGameState(loadedState);
       setCurrentSlotId(slotId);
       localStorage.setItem('lastPlayedSlotId', slotId);
       setView('game');
+    } else if (options?.auto) {
+      localStorage.removeItem('lastPlayedSlotId');
+      setCurrentSlotId(null);
+      setView('startScreen');
+      return;
     } else {
       setCurrentSlotId(slotId);
       setView('creator');
@@ -98,7 +103,9 @@ export default function App() {
 
   useEffect(() => {
     if (!loading) {
-      setView('startScreen');
+      const lastPlayedSlot = localStorage.getItem('lastPlayedSlotId');
+      if (lastPlayedSlot) handleLoadGame(lastPlayedSlot, { auto: true });
+      else setView('startScreen');
     }
   }, [loading, handleLoadGame]);
 
@@ -715,6 +722,23 @@ export default function App() {
   if (view === 'landing' || view === 'startScreen') return <StartScreen onLoadGame={handleLoadGame} onNewGameStart={handleNewGameStart} onQuickStart={handleQuickStart} onResumeLast={handleLoadGame} lastPlayedSlotId={localStorage.getItem('lastPlayedSlotId')} />;
   if (view === 'creator' && !player) return <CharacterCreator onComplete={handleCharacterCreation} onBack={() => setView('startScreen')} />;
   if (view === 'game' && !player) return <StartScreen onLoadGame={handleLoadGame} onNewGameStart={handleNewGameStart} onQuickStart={handleQuickStart} onResumeLast={handleLoadGame} lastPlayedSlotId={localStorage.getItem('lastPlayedSlotId')} />;
+
+  const actionModifiers = useMemo(() => (player ? getActionModifiers(player, world) : []), [player, world]);
+  const isEncumbered = actionModifiers.some(mod => mod.id === 'encumbered');
+  const actionHints = useMemo(() => (
+    actionModifiers.map(mod => ({
+      icon: mod.id === 'storm' ? <CloudLightning size={12} className="text-amber-400" /> : mod.id === 'rain' ? <CloudRain size={12} className="text-blue-400" /> : <Anchor size={12} className="text-orange-400" />,
+      text: mod.description,
+    }))
+  ), [actionModifiers]);
+
+  const getChoiceCost = useCallback((choice: Choice) => {
+    if (!player) {
+      return { mana: choice.manaCost || 0, stamina: choice.staminaCost || 0 };
+    }
+    const { manaCost, staminaCost } = getChoiceEffectiveCost(choice, player, world);
+    return { mana: manaCost, stamina: staminaCost };
+  }, [player, world]);
 
   const gameViewProps = { log, choices, processing, input, setInput, onAction: executeTurn, scrollRef, activeNPC: player?.activeNPC, playerResources: {mp: player?.manaCurrent || 0, st: player?.staminaCurrent || 0}, actionHints, getChoiceCost };
 
