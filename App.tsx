@@ -137,22 +137,29 @@ export default function App() {
   };
 
   const handleQuickStart = useCallback(async () => {
-    const summaries = await getAllSaveSlotSummaries(5);
-    let targetSlotId: string | null = null;
-    for (const summary of summaries) { if (!summary.exists) { targetSlotId = summary.slotId; break; } }
-    if (!targetSlotId) targetSlotId = 'slot1';
-    deleteSaveLocal(targetSlotId);
-    // FIX: Initialize player with empty statusEffects array
-    const { player: dp, world: dw, log: dl, choices: dc } = createDefaultCharacter();
-    dp.statusEffects = []; 
-    setPlayer(dp); setWorld(dw); setLog(dl); setChoices(dc);
-    setCurrentSlotId(targetSlotId); localStorage.setItem('lastPlayedSlotId', targetSlotId); setView('game');
-    saveGameLocal(targetSlotId, { player: dp, world: dw, log: dl, choices: dc, view: 'game', enemy: null });
-    // Initialize fresh memory store for new game
-    const store = new MemoryStore(targetSlotId);
-    await store.load();
-    memoryStoreRef.current = store;
-    addToast(`Quick Start: ${dp.name}!`, "success");
+    try {
+      const summaries = await getAllSaveSlotSummaries(5);
+      let targetSlotId: string | null = null;
+      for (const summary of summaries) { if (!summary.exists) { targetSlotId = summary.slotId; break; } }
+      if (!targetSlotId) targetSlotId = 'slot1';
+      deleteSaveLocal(targetSlotId);
+      // FIX: Initialize player with empty statusEffects array
+      const { player: dp, world: dw, log: dl, choices: dc } = createDefaultCharacter();
+      dp.statusEffects = [];
+      setPlayer(dp); setWorld(dw); setLog(dl); setChoices(dc);
+      setCurrentSlotId(targetSlotId); localStorage.setItem('lastPlayedSlotId', targetSlotId);
+      saveGameLocal(targetSlotId, { player: dp, world: dw, log: dl, choices: dc, view: 'game', enemy: null });
+      // Initialize fresh memory store for new game
+      const store = new MemoryStore(targetSlotId);
+      await store.load();
+      memoryStoreRef.current = store;
+      setView('game');
+      addToast(`Quick Start: ${dp.name}!`, "success");
+    } catch (error) {
+      console.error('Quick Start failed:', error);
+      setView('startScreen');
+      addToast('Quick Start failed. Please try again.', 'danger');
+    }
   }, [addToast]);
 
   const tickWorld = (p: Player, w: World, hoursPassed: number): { player: Player, world: World, logs: string[] } => {
@@ -694,9 +701,27 @@ export default function App() {
       saveGameLocal(currentSlotId, { player: nextPlayer, world, log: nextLog, choices, view: 'crafting', enemy });
   };
 
+  const actionModifiers = useMemo(() => (player ? getActionModifiers(player, world) : []), [player, world]);
+  const isEncumbered = actionModifiers.some(mod => mod.id === 'encumbered');
+  const actionHints = useMemo(() => (
+    actionModifiers.map(mod => ({
+      icon: mod.id === 'storm' ? <CloudLightning size={12} className="text-amber-400" /> : mod.id === 'rain' ? <CloudRain size={12} className="text-blue-400" /> : <Anchor size={12} className="text-orange-400" />,
+      text: mod.description,
+    }))
+  ), [actionModifiers]);
+
+  const getChoiceCost = useCallback((choice: Choice) => {
+    if (!player) {
+      return { mana: choice.manaCost || 0, stamina: choice.staminaCost || 0 };
+    }
+    const { manaCost, staminaCost } = getChoiceEffectiveCost(choice, player, world);
+    return { mana: manaCost, stamina: staminaCost };
+  }, [player, world]);
+
   if (loading) return <div className="h-screen bg-slate-950 flex items-center justify-center text-indigo-500"><RefreshCw className="animate-spin"/></div>;
   if (view === 'landing' || view === 'startScreen') return <StartScreen onLoadGame={handleLoadGame} onNewGameStart={handleNewGameStart} onQuickStart={handleQuickStart} onResumeLast={handleLoadGame} lastPlayedSlotId={localStorage.getItem('lastPlayedSlotId')} />;
   if (view === 'creator' && !player) return <CharacterCreator onComplete={handleCharacterCreation} onBack={() => setView('startScreen')} />;
+  if (view === 'game' && !player) return <StartScreen onLoadGame={handleLoadGame} onNewGameStart={handleNewGameStart} onQuickStart={handleQuickStart} onResumeLast={handleLoadGame} lastPlayedSlotId={localStorage.getItem('lastPlayedSlotId')} />;
 
   const actionModifiers = useMemo(() => (player ? getActionModifiers(player, world) : []), [player, world]);
   const isEncumbered = actionModifiers.some(mod => mod.id === 'encumbered');
