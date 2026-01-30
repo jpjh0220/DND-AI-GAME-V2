@@ -173,9 +173,6 @@ export const GameView: React.FC<GameViewProps> = ({ log, choices, processing, in
                   {config.icon}
                   {c.label}
                 </div>
-                <span className="text-[9px] font-medium text-slate-400 group-disabled:text-slate-500">
-                  {afterDetails}
-                </span>
                 {(manaCost > 0 || staminaCost > 0) && (
                     <div className="absolute -top-2 -right-1 flex gap-1">
                         {manaCost > 0 && (
