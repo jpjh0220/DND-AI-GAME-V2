@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken, Auth, User as FirebaseUser } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
@@ -8,7 +8,7 @@ import { RefreshCw, Heart, Zap, Wind, Coins, Map, User, Backpack, Star, Menu, Sh
 
 import { Player, World, LogEntry, Choice, Item, Enemy, SkillCheckDetails, NPC, Achievement, PlayerStats, Recipe, ShopData, Encounter, StatusEffect } from './types';
 import { getFirebaseConfig } from './firebase/index';
-import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory } from './systems/index';
+import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost } from './systems/index';
 import { callGeminiAPI, buildPrompt, generateSceneImage } from './api/index';
 import { saveGame as saveGameCloud } from './persistence/cloud';
 import { saveGameLocal, loadGameLocal, deleteSaveLocal, GameState, SaveSlotSummary, getAllSaveSlotSummaries } from './persistence/local';
@@ -78,13 +78,18 @@ export default function App() {
     setEnemy(newGameState.enemy);
   }, []);
 
-  const handleLoadGame = useCallback(async (slotId: string) => {
+  const handleLoadGame = useCallback(async (slotId: string, options?: { auto?: boolean }) => {
     const loadedState = loadGameLocal(slotId);
     if (loadedState && loadedState.player) {
       updateGameState(loadedState);
       setCurrentSlotId(slotId);
       localStorage.setItem('lastPlayedSlotId', slotId);
       setView('game');
+    } else if (options?.auto) {
+      localStorage.removeItem('lastPlayedSlotId');
+      setCurrentSlotId(null);
+      setView('startScreen');
+      return;
     } else {
       setCurrentSlotId(slotId);
       setView('creator');
@@ -99,7 +104,7 @@ export default function App() {
   useEffect(() => {
     if (!loading) {
       const lastPlayedSlot = localStorage.getItem('lastPlayedSlotId');
-      if (lastPlayedSlot) handleLoadGame(lastPlayedSlot);
+      if (lastPlayedSlot) handleLoadGame(lastPlayedSlot, { auto: true });
       else setView('startScreen');
     }
   }, [loading, handleLoadGame]);
@@ -693,7 +698,24 @@ export default function App() {
   if (view === 'landing' || view === 'startScreen') return <StartScreen onLoadGame={handleLoadGame} onNewGameStart={handleNewGameStart} onQuickStart={handleQuickStart} />;
   if (view === 'creator' && !player) return <CharacterCreator onComplete={handleCharacterCreation} onBack={() => setView('startScreen')} />;
 
-  const gameViewProps = { log, choices, processing, input, setInput, onAction: executeTurn, scrollRef, activeNPC: player?.activeNPC, playerResources: {mp: player?.manaCurrent || 0, st: player?.staminaCurrent || 0} };
+  const actionModifiers = useMemo(() => (player ? getActionModifiers(player, world) : []), [player, world]);
+  const isEncumbered = actionModifiers.some(mod => mod.id === 'encumbered');
+  const actionHints = useMemo(() => (
+    actionModifiers.map(mod => ({
+      icon: mod.id === 'storm' ? <CloudLightning size={12} className="text-amber-400" /> : mod.id === 'rain' ? <CloudRain size={12} className="text-blue-400" /> : <Anchor size={12} className="text-orange-400" />,
+      text: mod.description,
+    }))
+  ), [actionModifiers]);
+
+  const getChoiceCost = useCallback((choice: Choice) => {
+    if (!player) {
+      return { mana: choice.manaCost || 0, stamina: choice.staminaCost || 0 };
+    }
+    const { manaCost, staminaCost } = getChoiceEffectiveCost(choice, player, world);
+    return { mana: manaCost, stamina: staminaCost };
+  }, [player, world]);
+
+  const gameViewProps = { log, choices, processing, input, setInput, onAction: executeTurn, scrollRef, activeNPC: player?.activeNPC, playerResources: {mp: player?.manaCurrent || 0, st: player?.staminaCurrent || 0}, actionHints, getChoiceCost };
 
   return (
     <div className="h-screen bg-slate-950 text-slate-200 flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden font-sans relative">
@@ -708,7 +730,7 @@ export default function App() {
                 {player?.portrait ? <img src={player.portrait} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white text-xs font-black">{player?.level}</div>}
             </div>
             <div>
-              <div className="font-bold text-white text-sm flex items-center gap-1.5 leading-none">{player?.name} {calculateEncumbrance(player?.inventory || []) > calculateMaxCarry(player?.stats.str || 10) && <Anchor size={12} className="text-orange-500" />}</div>
+              <div className="font-bold text-white text-sm flex items-center gap-1.5 leading-none">{player?.name} {isEncumbered && <Anchor size={12} className="text-orange-500" />}</div>
               <div className="text-[9px] text-slate-500 uppercase tracking-[0.2em] mt-1 font-black">{player?.race} {player?.class}</div>
             </div>
           </div>
@@ -722,9 +744,9 @@ export default function App() {
             </div>
         </div>
         <div className="flex gap-2">
-          <Bar color="bg-red-500" cur={player?.hpCurrent || 0} max={player?.hpMax || 1} label="HP" icon={<Heart size={8}/>} />
-          <Bar color="bg-blue-500" cur={player?.manaCurrent || 0} max={player?.manaMax || 1} label="MP" icon={<Zap size={8}/>} />
-          <Bar color="bg-green-500" cur={player?.staminaCurrent || 0} max={player?.staminaMax || 1} label="ST" icon={<Wind size={8}/>} />
+          <Bar color="bg-red-500" cur={player?.hpCurrent || 0} max={player?.hpMax || 1} label="HP" icon={<Heart size={8}/>} warningThreshold={0.35} criticalThreshold={0.18} />
+          <Bar color="bg-blue-500" cur={player?.manaCurrent || 0} max={player?.manaMax || 1} label="MP" icon={<Zap size={8}/>} warningThreshold={0.3} criticalThreshold={0.15} />
+          <Bar color="bg-green-500" cur={player?.staminaCurrent || 0} max={player?.staminaMax || 1} label="ST" icon={<Wind size={8}/>} warningThreshold={0.3} criticalThreshold={0.15} />
         </div>
       </div>
 
