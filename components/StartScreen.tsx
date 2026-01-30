@@ -7,11 +7,14 @@ interface StartScreenProps {
   onLoadGame: (slotId: string) => void;
   onNewGameStart: (summary: SaveSlotSummary) => void;
   onQuickStart: () => void; // New prop for quick start
+  onResumeLast: (slotId: string) => void;
+  lastPlayedSlotId?: string | null;
 }
 
-export const StartScreen: React.FC<StartScreenProps> = ({ onLoadGame, onNewGameStart, onQuickStart }) => {
+export const StartScreen: React.FC<StartScreenProps> = ({ onLoadGame, onNewGameStart, onQuickStart, onResumeLast, lastPlayedSlotId }) => {
   const [slotSummaries, setSlotSummaries] = useState<SaveSlotSummary[]>([]);
   const NUM_SLOTS = 5;
+  const lastPlayedSummary = slotSummaries.find(summary => summary.slotId === lastPlayedSlotId && summary.exists);
 
   useEffect(() => {
     const fetchSummaries = async () => {
@@ -39,6 +42,15 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onLoadGame, onNewGameS
       >
         <Rocket size={24}/> Quick Start
       </button>
+
+      {lastPlayedSummary && (
+        <button
+          onClick={() => onResumeLast(lastPlayedSummary.slotId)}
+          className="w-full max-w-xs py-3 mb-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-xl shadow-indigo-900/20 active:scale-95 flex items-center justify-center gap-2 shrink-0"
+        >
+          <Play size={20}/> Resume {lastPlayedSummary.playerName || 'Last Adventure'}
+        </button>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg mb-8">
         {slotSummaries.map((summary, index) => (
