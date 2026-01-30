@@ -78,13 +78,18 @@ export default function App() {
     setEnemy(newGameState.enemy);
   }, []);
 
-  const handleLoadGame = useCallback(async (slotId: string) => {
+  const handleLoadGame = useCallback(async (slotId: string, options?: { auto?: boolean }) => {
     const loadedState = loadGameLocal(slotId);
     if (loadedState && loadedState.player) {
       updateGameState(loadedState);
       setCurrentSlotId(slotId);
       localStorage.setItem('lastPlayedSlotId', slotId);
       setView('game');
+    } else if (options?.auto) {
+      localStorage.removeItem('lastPlayedSlotId');
+      setCurrentSlotId(null);
+      setView('startScreen');
+      return;
     } else {
       setCurrentSlotId(slotId);
       setView('creator');
@@ -99,7 +104,7 @@ export default function App() {
   useEffect(() => {
     if (!loading) {
       const lastPlayedSlot = localStorage.getItem('lastPlayedSlotId');
-      if (lastPlayedSlot) handleLoadGame(lastPlayedSlot);
+      if (lastPlayedSlot) handleLoadGame(lastPlayedSlot, { auto: true });
       else setView('startScreen');
     }
   }, [loading, handleLoadGame]);
