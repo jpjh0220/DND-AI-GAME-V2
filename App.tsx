@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken, Auth, User as FirebaseUser } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
@@ -8,7 +8,7 @@ import { RefreshCw, Heart, Zap, Wind, Coins, Map, User, Backpack, Star, Menu, Sh
 
 import { Player, World, LogEntry, Choice, Item, Enemy, SkillCheckDetails, NPC, Achievement, PlayerStats, Recipe, ShopData, Encounter, StatusEffect } from './types';
 import { getFirebaseConfig } from './firebase/index';
-import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory } from './systems/index';
+import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost } from './systems/index';
 import { callGeminiAPI, buildPrompt, generateSceneImage } from './api/index';
 import { saveGame as saveGameCloud } from './persistence/cloud';
 import { saveGameLocal, loadGameLocal, deleteSaveLocal, GameState, SaveSlotSummary, getAllSaveSlotSummaries } from './persistence/local';
@@ -98,9 +98,7 @@ export default function App() {
 
   useEffect(() => {
     if (!loading) {
-      const lastPlayedSlot = localStorage.getItem('lastPlayedSlotId');
-      if (lastPlayedSlot) handleLoadGame(lastPlayedSlot);
-      else setView('startScreen');
+      setView('startScreen');
     }
   }, [loading, handleLoadGame]);
 
@@ -132,22 +130,29 @@ export default function App() {
   };
 
   const handleQuickStart = useCallback(async () => {
-    const summaries = await getAllSaveSlotSummaries(5);
-    let targetSlotId: string | null = null;
-    for (const summary of summaries) { if (!summary.exists) { targetSlotId = summary.slotId; break; } }
-    if (!targetSlotId) targetSlotId = 'slot1';
-    deleteSaveLocal(targetSlotId);
-    // FIX: Initialize player with empty statusEffects array
-    const { player: dp, world: dw, log: dl, choices: dc } = createDefaultCharacter();
-    dp.statusEffects = []; 
-    setPlayer(dp); setWorld(dw); setLog(dl); setChoices(dc);
-    setCurrentSlotId(targetSlotId); localStorage.setItem('lastPlayedSlotId', targetSlotId); setView('game');
-    saveGameLocal(targetSlotId, { player: dp, world: dw, log: dl, choices: dc, view: 'game', enemy: null });
-    // Initialize fresh memory store for new game
-    const store = new MemoryStore(targetSlotId);
-    await store.load();
-    memoryStoreRef.current = store;
-    addToast(`Quick Start: ${dp.name}!`, "success");
+    try {
+      const summaries = await getAllSaveSlotSummaries(5);
+      let targetSlotId: string | null = null;
+      for (const summary of summaries) { if (!summary.exists) { targetSlotId = summary.slotId; break; } }
+      if (!targetSlotId) targetSlotId = 'slot1';
+      deleteSaveLocal(targetSlotId);
+      // FIX: Initialize player with empty statusEffects array
+      const { player: dp, world: dw, log: dl, choices: dc } = createDefaultCharacter();
+      dp.statusEffects = [];
+      setPlayer(dp); setWorld(dw); setLog(dl); setChoices(dc);
+      setCurrentSlotId(targetSlotId); localStorage.setItem('lastPlayedSlotId', targetSlotId);
+      saveGameLocal(targetSlotId, { player: dp, world: dw, log: dl, choices: dc, view: 'game', enemy: null });
+      // Initialize fresh memory store for new game
+      const store = new MemoryStore(targetSlotId);
+      await store.load();
+      memoryStoreRef.current = store;
+      setView('game');
+      addToast(`Quick Start: ${dp.name}!`, "success");
+    } catch (error) {
+      console.error('Quick Start failed:', error);
+      setView('startScreen');
+      addToast('Quick Start failed. Please try again.', 'danger');
+    }
   }, [addToast]);
 
   const tickWorld = (p: Player, w: World, hoursPassed: number): { player: Player, world: World, logs: string[] } => {
@@ -689,11 +694,29 @@ export default function App() {
       saveGameLocal(currentSlotId, { player: nextPlayer, world, log: nextLog, choices, view: 'crafting', enemy });
   };
 
-  if (loading) return <div className="h-screen bg-slate-950 flex items-center justify-center text-indigo-500"><RefreshCw className="animate-spin"/></div>;
-  if (view === 'landing' || view === 'startScreen') return <StartScreen onLoadGame={handleLoadGame} onNewGameStart={handleNewGameStart} onQuickStart={handleQuickStart} />;
-  if (view === 'creator' && !player) return <CharacterCreator onComplete={handleCharacterCreation} onBack={() => setView('startScreen')} />;
+  const actionModifiers = useMemo(() => (player ? getActionModifiers(player, world) : []), [player, world]);
+  const isEncumbered = actionModifiers.some(mod => mod.id === 'encumbered');
+  const actionHints = useMemo(() => (
+    actionModifiers.map(mod => ({
+      icon: mod.id === 'storm' ? <CloudLightning size={12} className="text-amber-400" /> : mod.id === 'rain' ? <CloudRain size={12} className="text-blue-400" /> : <Anchor size={12} className="text-orange-400" />,
+      text: mod.description,
+    }))
+  ), [actionModifiers]);
 
-  const gameViewProps = { log, choices, processing, input, setInput, onAction: executeTurn, scrollRef, activeNPC: player?.activeNPC, playerResources: {mp: player?.manaCurrent || 0, st: player?.staminaCurrent || 0} };
+  const getChoiceCost = useCallback((choice: Choice) => {
+    if (!player) {
+      return { mana: choice.manaCost || 0, stamina: choice.staminaCost || 0 };
+    }
+    const { manaCost, staminaCost } = getChoiceEffectiveCost(choice, player, world);
+    return { mana: manaCost, stamina: staminaCost };
+  }, [player, world]);
+
+  if (loading) return <div className="h-screen bg-slate-950 flex items-center justify-center text-indigo-500"><RefreshCw className="animate-spin"/></div>;
+  if (view === 'landing' || view === 'startScreen') return <StartScreen onLoadGame={handleLoadGame} onNewGameStart={handleNewGameStart} onQuickStart={handleQuickStart} onResumeLast={handleLoadGame} lastPlayedSlotId={localStorage.getItem('lastPlayedSlotId')} />;
+  if (view === 'creator' && !player) return <CharacterCreator onComplete={handleCharacterCreation} onBack={() => setView('startScreen')} />;
+  if (view === 'game' && !player) return <StartScreen onLoadGame={handleLoadGame} onNewGameStart={handleNewGameStart} onQuickStart={handleQuickStart} onResumeLast={handleLoadGame} lastPlayedSlotId={localStorage.getItem('lastPlayedSlotId')} />;
+
+  const gameViewProps = { log, choices, processing, input, setInput, onAction: executeTurn, scrollRef, activeNPC: player?.activeNPC, playerResources: {mp: player?.manaCurrent || 0, st: player?.staminaCurrent || 0}, actionHints, getChoiceCost };
 
   return (
     <div className="h-screen bg-slate-950 text-slate-200 flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden font-sans relative">
@@ -708,7 +731,7 @@ export default function App() {
                 {player?.portrait ? <img src={player.portrait} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white text-xs font-black">{player?.level}</div>}
             </div>
             <div>
-              <div className="font-bold text-white text-sm flex items-center gap-1.5 leading-none">{player?.name} {calculateEncumbrance(player?.inventory || []) > calculateMaxCarry(player?.stats.str || 10) && <Anchor size={12} className="text-orange-500" />}</div>
+              <div className="font-bold text-white text-sm flex items-center gap-1.5 leading-none">{player?.name} {isEncumbered && <Anchor size={12} className="text-orange-500" />}</div>
               <div className="text-[9px] text-slate-500 uppercase tracking-[0.2em] mt-1 font-black">{player?.race} {player?.class}</div>
             </div>
           </div>
@@ -722,9 +745,9 @@ export default function App() {
             </div>
         </div>
         <div className="flex gap-2">
-          <Bar color="bg-red-500" cur={player?.hpCurrent || 0} max={player?.hpMax || 1} label="HP" icon={<Heart size={8}/>} />
-          <Bar color="bg-blue-500" cur={player?.manaCurrent || 0} max={player?.manaMax || 1} label="MP" icon={<Zap size={8}/>} />
-          <Bar color="bg-green-500" cur={player?.staminaCurrent || 0} max={player?.staminaMax || 1} label="ST" icon={<Wind size={8}/>} />
+          <Bar color="bg-red-500" cur={player?.hpCurrent || 0} max={player?.hpMax || 1} label="HP" icon={<Heart size={8}/>} warningThreshold={0.35} criticalThreshold={0.18} />
+          <Bar color="bg-blue-500" cur={player?.manaCurrent || 0} max={player?.manaMax || 1} label="MP" icon={<Zap size={8}/>} warningThreshold={0.3} criticalThreshold={0.15} />
+          <Bar color="bg-green-500" cur={player?.staminaCurrent || 0} max={player?.staminaMax || 1} label="ST" icon={<Wind size={8}/>} warningThreshold={0.3} criticalThreshold={0.15} />
         </div>
       </div>
 
