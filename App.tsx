@@ -364,7 +364,7 @@ export default function App() {
 
       if (nextPlayer.xp >= calculateXpToNextLevel(nextPlayer.level)) {
           const lvl = handleLevelUp(nextPlayer);
-          nextPlayer.level = lvl.player.level; nextPlayer.hpMax = lvl.player.hpMax;
+          Object.assign(nextPlayer, lvl.player);
           lvl.messages.forEach(m => finalLog.push({ type: 'levelup', text: m }));
       }
 

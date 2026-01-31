@@ -21,10 +21,13 @@ export const checkSurvival = (p: Player) => {
         } 
     }
     
-    if (waterIdx > -1) { 
-        player.thirstDays = 0; 
-        messages.push("Drank water."); 
-    } else { 
+    if (waterIdx > -1) {
+        // Re-find index since ration splice may have shifted indices
+        waterIdx = player.inventory.findIndex(i => i.id === 'waterskin');
+        if (waterIdx > -1) player.inventory.splice(waterIdx, 1);
+        player.thirstDays = 0;
+        messages.push("Drank water.");
+    } else {
         player.thirstDays += 1; 
         player.exhaustion = Math.min(6, player.exhaustion + 1); // Max exhaustion level 6
         messages.push("Dehydrated! Exhaustion +1."); 

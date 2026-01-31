@@ -3,7 +3,7 @@
 import { Player, World, LogEntry, Choice, Item, PlayerStats, Spell } from '../types';
 // FIX: Corrected import path to point to the index file within the directory.
 import { CLASSES, ITEMS_DB, RACES, BACKGROUNDS, SPELLS_DB } from '../registries/index';
-import { getMod, calculatePlayerAC } from './calculations';
+import { getMod, calculatePlayerAC, calculateXpToNextLevel } from './calculations';
 
 export const assignDefaultStats = (raceName: string, className: string): PlayerStats => {
     const classData = CLASSES[className];
@@ -155,8 +155,10 @@ export const handleLevelUp = (player: Player): { player: Player, messages: strin
     const nextPlayer = { ...player };
     const messages: string[] = [];
     
+    const xpRequired = calculateXpToNextLevel(nextPlayer.level);
+    nextPlayer.xp = Math.max(0, nextPlayer.xp - xpRequired);
     nextPlayer.level += 1;
-    
+
     const classData = CLASSES[nextPlayer.class];
     const conMod = getMod(nextPlayer.stats.con);
     let hpGain = rollHitDie(classData.hd) + conMod;

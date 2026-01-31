@@ -89,6 +89,13 @@ export const InventoryScreen: React.FC<ScreenProps> = ({ player, onClose, onUseI
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {filteredInventory.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full text-slate-500 py-12">
+                    <Package size={32} className="mb-3 opacity-30" />
+                    <p className="text-sm font-bold">{activeTab === 'all' ? 'Your pack is empty.' : `No ${activeTab} found.`}</p>
+                    <p className="text-xs mt-1 text-slate-600">Items you find on your journey will appear here.</p>
+                </div>
+            )}
             {filteredInventory.map(({ item, originalIndex }) => (
                 <div 
                   key={`${item.id}-${originalIndex}`} 
