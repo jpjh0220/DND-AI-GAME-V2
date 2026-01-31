@@ -20,6 +20,8 @@ export const calculatePlayerAC = (player: Player): number => {
     return totalAC;
 };
 
+export const getProficiencyBonus = (level: number): number => Math.ceil(level / 4) + 1;
+
 export const calculateXpToNextLevel = (level: number): number => {
   return (level * 100) + 150;
 };

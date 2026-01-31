@@ -8,7 +8,7 @@ import { RefreshCw, Heart, Zap, Wind, Coins, Map, User, Backpack, Star, Menu, Sh
 
 import { Player, World, LogEntry, Choice, Item, Enemy, SkillCheckDetails, NPC, Achievement, PlayerStats, Recipe, ShopData, Encounter, StatusEffect } from './types';
 import { getFirebaseConfig } from './firebase/index';
-import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost } from './systems/index';
+import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost, getProficiencyBonus } from './systems/index';
 import { callGeminiAPI, buildPrompt, generateSceneImage } from './api/index';
 import { saveGame as saveGameCloud } from './persistence/cloud';
 import { saveGameLocal, loadGameLocal, deleteSaveLocal, GameState, SaveSlotSummary, getAllSaveSlotSummaries } from './persistence/local';
@@ -189,7 +189,7 @@ export default function App() {
 
     if (processing || !actionText || !actionText.trim() || !player || !currentSlotId) return;
     
-    let nextPlayer = { ...player, inventory: [...player.inventory], quests: [...(player.quests || [])], statusEffects: [...player.statusEffects] };
+    let nextPlayer = JSON.parse(JSON.stringify(player)) as Player;
     let nextWorld = { ...world, facts: [...world.facts] };
     const currentWeight = calculateEncumbrance(nextPlayer.inventory);
     const maxWeight = calculateMaxCarry(nextPlayer.stats.str);
@@ -241,7 +241,7 @@ export default function App() {
       if (!rollOverride && p.skillCheck?.skill) {
           const { skill, dc } = p.skillCheck;
           const statKey = ALL_SKILLS[skill as keyof typeof ALL_SKILLS];
-          const bonus = getMod(nextPlayer.stats[statKey]) + (nextPlayer.proficiencies.skills.includes(skill) ? 2 : 0);
+          const bonus = getMod(nextPlayer.stats[statKey]) + (nextPlayer.proficiencies.skills.includes(skill) ? getProficiencyBonus(nextPlayer.level) : 0);
           const roll = Math.floor(Math.random() * 20) + 1;
           // FIX: Add 'text: actionText' to activeSkillCheck state.
           setActiveSkillCheck({ skill, roll, bonus, total: roll + bonus, dc, success: roll + bonus >= dc, text: actionText });
@@ -454,6 +454,17 @@ export default function App() {
           memoryStoreRef.current.save().catch(err => console.warn('Memory save failed:', err));
       }
 
+      // Check for player death
+      if (nextPlayer.hpCurrent <= 0 && !currentEnemy) {
+          nextPlayer.hpCurrent = 0;
+          finalLog.push({ type: 'worldevent', text: `${nextPlayer.name} has fallen. The light fades from your eyes as darkness claims you...` });
+          setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices([]);
+          saveGameLocal(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: [], view: 'game', enemy: null });
+          addToast('You have died. Start a new game from the menu.', 'danger');
+          setProcessing(false);
+          return;
+      }
+
       setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices(cleanedChoices);
       saveGameLocal(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: cleanedChoices, view: currentEnemy ? 'combat' : 'game', enemy: currentEnemy });
     } catch (err) {
@@ -642,8 +653,9 @@ export default function App() {
       nextPlayer.currency -= (item.value || 0);
       nextPlayer.inventory.push(item);
   
-      const nextShop = { ...shop };
-      nextShop.inventory = nextShop.inventory.filter(i => i.id !== item.id);
+      const nextShop = { ...shop, inventory: [...shop.inventory] };
+      const shopIdx = nextShop.inventory.findIndex(i => i.id === item.id);
+      if (shopIdx > -1) nextShop.inventory.splice(shopIdx, 1);
       setShop(nextShop);
   
       setPlayer(nextPlayer);
@@ -768,7 +780,25 @@ export default function App() {
                 case 'equipment': return <EquipmentScreen player={player!} onClose={() => setView('game')} onEquip={handleEquip} onUnequip={handleUnequip} />;
                 case 'quests': return <QuestScreen player={player!} onClose={() => setView('game')} />;
                 case 'menu': return <MainMenu setView={setView} onClose={() => setView('game')} onSaveGame={() => addToast("Progress Saved", "success")} onNewGame={() => setView('startScreen')} />;
-                case 'rest': return <RestScreen player={player!} onRest={(t) => { setView('game'); executeTurn(t === 'short' ? "I take a short rest." : "I set up camp for a long rest."); }} onClose={() => setView('game')} />;
+                case 'rest': return <RestScreen player={player!} onRest={(t) => {
+                    if (player) {
+                        const rested = { ...player, inventory: [...player.inventory], statusEffects: [...player.statusEffects] };
+                        if (t === 'short') {
+                            rested.staminaCurrent = rested.staminaMax;
+                            addToast('Stamina fully restored', 'success');
+                        } else {
+                            rested.hpCurrent = rested.hpMax;
+                            rested.manaCurrent = rested.manaMax;
+                            rested.staminaCurrent = rested.staminaMax;
+                            rested.exhaustion = Math.max(0, rested.exhaustion - 1);
+                            addToast('HP, Mana & Stamina fully restored', 'success');
+                        }
+                        setPlayer(rested);
+                        if (currentSlotId) saveGameLocal(currentSlotId, { player: rested, world, log, choices, view: 'game', enemy });
+                    }
+                    setView('game');
+                    executeTurn(t === 'short' ? "I take a short rest." : "I set up camp for a long rest.");
+                }} onClose={() => setView('game')} />;
                 case 'journal': return <JournalScreen log={log} world={world} onClose={() => setView('game')} />;
                 case 'map': return <MapScreen world={world} onClose={() => setView('game')} />;
                 case 'settings': return <SettingsPage onClose={() => setView('game')} />;

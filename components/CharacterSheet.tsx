@@ -6,7 +6,7 @@ import { Player } from '../types';
 // FIX: Corrected import path to point to the index file within the directory.
 import { RACES, CLASSES, BACKGROUNDS } from '../registries/index';
 // FIX: Corrected import path to point to the index file within the directory.
-import { getMod, getSpellcastingAbility, ALL_SKILLS, calculateXpToNextLevel, calculateEncumbrance, calculateMaxCarry } from '../systems/index';
+import { getMod, getSpellcastingAbility, ALL_SKILLS, calculateXpToNextLevel, calculateEncumbrance, calculateMaxCarry, getProficiencyBonus } from '../systems/index';
 import { SheetSection } from './ui';
 
 interface CharacterSheetProps { 
@@ -17,7 +17,7 @@ interface CharacterSheetProps {
 
 export const CharacterSheet: React.FC<CharacterSheetProps> = ({ player, onClose, onGeneratePortrait }) => {
     const [generating, setGenerating] = useState(false);
-    const proficiencyBonus = 2; // Hardcoded for Lvl 1-4
+    const proficiencyBonus = getProficiencyBonus(player.level);
     
     let initiative = getMod(player.stats.dex);
     if (player.feats?.includes('alert')) {
