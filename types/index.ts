@@ -143,6 +143,15 @@ export interface LoreEntry {
   location?: string;
 }
 
+export interface RumorEntry {
+  id: string;
+  title: string;
+  region: string;
+  tone: string;
+  source: string;
+  detail: string;
+}
+
 
 export interface Player { 
   name: string; 
