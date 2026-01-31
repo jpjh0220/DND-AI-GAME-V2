@@ -75,7 +75,7 @@ export const RestScreen: React.FC<RestScreenProps> = ({ player, onRest, onClose 
             </button>
             {!canLongRest && (
                 <div className="mt-2 flex items-center gap-2 text-[10px] font-bold text-red-400 uppercase bg-red-950/30 p-2 rounded-lg border border-red-900/20">
-                    <X size={12} /> Requires: {!hasRation && "1x Ration"} {!hasRation && !hasWater && "&"} {!hasWater && "1x Waterskin"}
+                    <X size={12} /> Requires: {[!hasRation && "1x Ration", !hasWater && "1x Waterskin"].filter(Boolean).join(" & ")}
                 </div>
             )}
           </div>
