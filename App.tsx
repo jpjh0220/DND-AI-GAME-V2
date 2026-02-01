@@ -21,6 +21,20 @@ import {
 import { Bar, NavBtn, ToastContainer, ToastMessage, AtmosphereOverlay, DiceRollOverlay } from './components/ui';
 import { ITEMS_DB, ACHIEVEMENTS_DB, NPCS_DB, SHOPS_DB, ENCOUNTERS_DB, RECIPES_DB, LOCATIONS_DB, ENEMIES_DB } from './registries/index';
 
+const normalizeCurrencyDelta = (delta: number, context: string) => {
+  if (!delta) return 0;
+  const lowerContext = context.toLowerCase();
+  const absDelta = Math.abs(delta);
+  const mentionsGold = /\b(gold|gp)\b/.test(lowerContext);
+  const mentionsSilver = /\b(silver|sp)\b/.test(lowerContext);
+  const mentionsCopper = /\b(copper|cp)\b/.test(lowerContext);
+
+  if (mentionsGold && absDelta < 10000) return delta * 10000;
+  if (mentionsSilver && absDelta < 100) return delta * 100;
+  if (mentionsCopper) return delta;
+  return delta;
+};
+
 export default function App() {
   const [view, setView] = useState<string>('landing');
   const [loading, setLoading] = useState<boolean>(true);
@@ -328,7 +342,9 @@ export default function App() {
         if (p.weather) nextWorld.weather = p.weather;
       }
 
-      nextPlayer.currency = Math.max(0, nextPlayer.currency + Math.floor(p.currencyDelta || 0)); 
+      const currencyContext = `${actionText} ${aiData.narration || ''}`;
+      const normalizedCurrencyDelta = normalizeCurrencyDelta(p.currencyDelta || 0, currencyContext);
+      nextPlayer.currency = Math.max(0, nextPlayer.currency + Math.floor(normalizedCurrencyDelta)); 
       if (p.addItemId) {
         const item = ITEMS_DB.find(i => i.id === p.addItemId);
         if (item) nextPlayer.inventory.push({ ...item });
