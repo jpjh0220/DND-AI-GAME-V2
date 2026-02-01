@@ -131,8 +131,10 @@ export const buildPrompt = (
     return prompt;
 }
 
-export const generateSceneImage = async (prompt: string): Promise<string | null> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const generateSceneImage = async (prompt: string, apiKeyOverride?: string): Promise<string | null> => {
+    const key = apiKeyOverride || process.env.API_KEY;
+    if (!key) return null;
+    const ai = new GoogleGenAI({ apiKey: key });
     try {
         const response = await ai.models.generateContent({
             model: MODEL_IMAGE,
@@ -147,8 +149,10 @@ export const generateSceneImage = async (prompt: string): Promise<string | null>
     }
 };
 
-export const generateSpeech = async (text: string): Promise<string | null> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const generateSpeech = async (text: string, apiKeyOverride?: string): Promise<string | null> => {
+    const key = apiKeyOverride || process.env.API_KEY;
+    if (!key) return null;
+    const ai = new GoogleGenAI({ apiKey: key });
     try {
         const response = await ai.models.generateContent({
             model: MODEL_TTS,
@@ -165,6 +169,10 @@ export const generateSpeech = async (text: string): Promise<string | null> => {
     }
 };
 
+export { callLLM, loadProviderConfig, saveProviderConfig, clearProviderConfig, PROVIDERS } from './providers';
+export type { ProviderConfig, ProviderId } from './providers';
+
+/** @deprecated Use callLLM with ProviderConfig instead. Kept for backwards compatibility. */
 export const callGeminiAPI = async (userQuery: string, model: string): Promise<any> => {
     if (!process.env.API_KEY) throw new Error("API key not found.");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
