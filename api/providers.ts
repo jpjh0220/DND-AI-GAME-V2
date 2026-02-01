@@ -37,8 +37,8 @@ export const PROVIDERS: ProviderInfo[] = [
         id: 'gemini',
         name: 'Google Gemini',
         description: 'Google AI Studio / Gemini API',
-        defaultModel: 'gemini-3-flash-preview',
-        models: ['gemini-3-flash-preview', 'gemini-2.5-flash-preview-05-20', 'gemini-2.5-pro-preview-05-06'],
+        defaultModel: 'gemini-2.5-flash',
+        models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
         requiresBaseUrl: false,
         docsUrl: 'https://aistudio.google.com/apikey',
     },
@@ -72,6 +72,8 @@ export const PROVIDERS: ProviderInfo[] = [
 ];
 
 // --- Storage ---
+// Uses a single localStorage key with a ProviderState object containing all provider configs.
+// Each provider's credentials are stored separately within the configs map.
 
 const STORAGE_KEY = 'mythic_realms_llm_config';
 
@@ -83,6 +85,7 @@ interface ProviderState {
 }
 
 const normalizeProviderState = (raw: any): ProviderState => {
+    // Migrate from legacy single-config format
     if (raw && raw.providerId && raw.apiKey) {
         const legacyConfig = raw as ProviderConfig;
         return {
@@ -126,7 +129,8 @@ export const loadProviderConfig = (): ProviderConfig | null => {
     return state.configs[state.selectedProviderId] || null;
 };
 
-export const loadProviderConfigFor = (providerId: ProviderId): ProviderConfig | null => {
+/** Load saved credentials for a specific provider (without changing active provider) */
+export const loadProviderCredentials = (providerId: ProviderId): ProviderConfig | null => {
     const state = loadProviderState();
     return state.configs[providerId] || null;
 };

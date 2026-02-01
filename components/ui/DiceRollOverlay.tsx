@@ -52,16 +52,24 @@ export const DiceRollOverlay: React.FC<DiceRollOverlayProps> = ({
 
   useEffect(() => {
     if (phase === 'result') {
-      // Complete after showing result
+      // Auto-complete after 4s as fallback, but user can tap to dismiss immediately
       const timer = setTimeout(() => {
         onComplete();
-      }, 2000);
+      }, 4000);
       return () => clearTimeout(timer);
     }
   }, [phase, onComplete]);
 
+  const handleTap = () => {
+    if (phase === 'result') {
+      onComplete();
+    } else if (phase === 'settled') {
+      setPhase('result');
+    }
+  };
+
   return (
-    <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-500">
+    <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-500 cursor-pointer" onClick={handleTap}>
       <div className="text-center mb-8">
         <div className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em] mb-2">Skill Check</div>
         <h2 className="text-3xl font-black text-white uppercase tracking-tighter">{skill}</h2>
@@ -109,6 +117,11 @@ export const DiceRollOverlay: React.FC<DiceRollOverlayProps> = ({
           <div className="flex items-center gap-3 text-slate-400 animate-pulse">
             <Dices size={20} />
             <span className="font-bold uppercase text-xs tracking-widest">Rolling fate...</span>
+          </div>
+        )}
+        {phase === 'result' && (
+          <div className="mt-4 text-slate-500 text-xs font-bold uppercase tracking-widest animate-pulse">
+            Tap to continue
           </div>
         )}
       </div>

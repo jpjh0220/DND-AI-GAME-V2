@@ -18,7 +18,8 @@ export const buildPrompt = (
     enemy?: Enemy | null,
     skillCheckResult?: { skill: string; success: boolean },
     isWorldEventTriggered: boolean = false,
-    retrievedMemories: RetrievedMemory[] = []
+    retrievedMemories: RetrievedMemory[] = [],
+    choiceIntent?: string
 ): string => {
     // --- Compute full mechanical state via engine ---
     const snapshot: GameSnapshot = computeGameSnapshot(player);
@@ -39,8 +40,16 @@ export const buildPrompt = (
 
     // World geography (compact: only current location + connections)
     const currentFacts = (world?.facts || []);
-    const currentLocName = currentFacts[0]?.replace('Arrived at ', '') || 'Unknown';
-    const currentLoc = LOCATIONS_DB.find(l => currentFacts.some(f => f.includes(l.name)));
+    // Derive current location from the most recent "Arrived at" fact
+    let currentLocName = 'Unknown';
+    for (let i = currentFacts.length - 1; i >= 0; i--) {
+        if (currentFacts[i].startsWith('Arrived at ')) {
+            currentLocName = currentFacts[i].substring('Arrived at '.length);
+            break;
+        }
+    }
+    const currentLoc = LOCATIONS_DB.find(l => l.name === currentLocName) || LOCATIONS_DB.find(l => currentFacts.some(f => f.includes(l.name)));
+    const isTravelAction = choiceIntent === 'travel';
     const nearbyLocs = currentLoc?.connections
         ?.map(id => LOCATIONS_DB.find(l => l.id === id))
         .filter(Boolean)
@@ -56,21 +65,23 @@ GM Mode: ${gmMode.toUpperCase()}
 2. STAY in the current scene. Do not skip ahead, fast-forward time, or introduce unrelated events.
 3. Respond ONLY to the player's stated action. Do not add extra actions the player didn't take.
 4. RESPECT the character's mechanical state below. A wounded, exhausted, or encumbered character should struggle. A well-equipped character should feel powerful.
-5. Reference the player's EQUIPPED GEAR, FEATS, and CONDITIONS in your narration. They matter.
-6. Only mention gear or items that are EQUIPPED or explicitly referenced by the player. Do not bring up unequipped inventory unless the player mentions it.
+5. ONLY reference gear the player ACTUALLY HAS EQUIPPED (listed under EQUIPPED GEAR). NEVER mention, describe, or narrate the player using weapons, armor, or items they do not have. If EQUIPPED GEAR is empty, the player is unarmed/unarmored. Do NOT invent or assume equipment.
+6. ONLY reference items the player has in their INVENTORY. Do not mention potions, scrolls, tools, or other items the player does not possess.
 7. If the player has active STATUS EFFECTS or CONDITIONS, narrate their impact.
 8. Choices you offer MUST be relevant to the current scene. No random topic changes.
 9. NEVER teleport the player, introduce deus-ex-machina rescues, or resolve conflicts without player input.
 10. Maintain continuity with established world facts and previous events.
 11. The character's PERSONALITY (traits, ideals, bonds, flaws) should influence NPC reactions and available dialogue.
+12. Do NOT narrate the player performing actions they did not choose. Only describe the outcome of the player's stated action.
 
 === WORLD STATE ===
 Day ${world.day}, ${world.hour}:00. Weather: ${world.weather}.
-Location Facts: ${currentFacts.join(", ")}.
-${currentLoc ? `Current Location: ${currentLoc.name} (${currentLoc.type}, Danger Level: ${currentLoc.dangerLevel}). ${currentLoc.description}` : ''}
-${nearbyLocs.length > 0 ? `Nearby: ${nearbyLocs.join(', ')}` : ''}
-${currentLoc?.npcs ? `NPCs here: ${currentLoc.npcs.map(id => NPCS_DB.find(n => n.id === id)?.name || id).join(', ')}` : ''}
-${currentLoc?.shopIds ? `Shops here: ${currentLoc.shopIds.map(id => SHOPS_DB.find(s => s.id === id)?.name || id).join(', ')}` : ''}
+CURRENT LOCATION: ${currentLocName}${currentLoc ? ` (${currentLoc.type}, Danger Level: ${currentLoc.dangerLevel}). ${currentLoc.description}` : ''}
+${!isTravelAction ? `LOCATION LOCKED: The player is at ${currentLocName}. Do NOT move, teleport, or transition the player to any other location. The entire scene MUST take place at ${currentLocName}. Do NOT set addFact to "Arrived at ..." unless the player chose a travel action.` : `TRAVEL ACTION: The player is traveling. You may move them to a connected location using addFact: "Arrived at <destination>". Only use destinations from Nearby locations.`}
+${nearbyLocs.length > 0 ? `Nearby locations (valid travel destinations): ${nearbyLocs.join(', ')}` : ''}
+${currentLoc?.npcs ? `NPCs at this location: ${currentLoc.npcs.map(id => NPCS_DB.find(n => n.id === id)?.name || id).join(', ')}` : 'No NPCs at this location.'}
+${currentLoc?.shopIds ? `Shops at this location: ${currentLoc.shopIds.map(id => SHOPS_DB.find(s => s.id === id)?.name || id).join(', ')}` : ''}
+Previous events: ${currentFacts.slice(-5).join(", ")}
 
 ${characterState}
 ${memoryContext}
@@ -116,7 +127,7 @@ ${snapshot.conditions.exhaustionLevel >= 3 ? 'WARNING: Player has disadvantage o
 
 Instructions:
 1. This is the player's turn. Narrate what happens based on their action.
-2. Reference the player's weapon and fighting style by name.
+2. ONLY reference the weapon listed above under "Player weapon". If the player is Unarmed, describe fists/kicks — do NOT invent weapons. NEVER describe the player using a sword, staff, bow, or any weapon they do not have equipped.
 3. Return playerAttackHitsEnemy and enemyAttackHitsPlayer booleans.
 4. If enemy HP would drop to 0, set endCombat: true and describe the killing blow.
 5. Account for the player's feats and conditions in the narration.
@@ -143,12 +154,12 @@ JSON Schema: {
 Instructions:
 1. Respond ONLY to the player's stated action. Stay in the current scene.
 2. If the action costs resources, set manaCost/staminaCost in choices.
-3. Reference the player's equipped gear, conditions, and feats when relevant. Only mention gear the player has equipped or explicitly referenced.
+3. ONLY reference gear the player actually has equipped (see EQUIPPED GEAR above). NEVER describe the player wearing, carrying, or using items they don't have. Do NOT invent gear.
 4. Offer 2-4 choices that are NATURAL CONTINUATIONS of the current scene.
 5. Each choice should feel different (cautious vs bold, social vs physical, etc).
 6. If the player is wounded, starving, exhausted, or encumbered — reflect it in the narration.
 
-Available NPC IDs (only use these): ${NPCS_DB.map(n => n.id).join(', ')}
+Available NPC IDs at this location (ONLY use these): ${currentLoc?.npcs?.join(', ') || 'none — do NOT introduce NPCs'}
 Available Shop IDs (only use these): ${SHOPS_DB.map(s => s.id).join(', ')}
 Available Encounter IDs: ${ENCOUNTERS_DB.map(e => e.id).join(', ')}
 Available Achievement IDs: ${ACHIEVEMENTS_DB.map(a => a.id).join(', ')}
@@ -218,7 +229,7 @@ export const generateSpeech = async (text: string, apiKeyOverride?: string): Pro
     }
 };
 
-export { callLLM, loadProviderConfig, saveProviderConfig, clearProviderConfig, PROVIDERS } from './providers';
+export { callLLM, loadProviderConfig, saveProviderConfig, clearProviderConfig, loadProviderCredentials, PROVIDERS } from './providers';
 export type { ProviderConfig, ProviderId } from './providers';
 
 /** @deprecated Use callLLM with ProviderConfig instead. Kept for backwards compatibility. */
