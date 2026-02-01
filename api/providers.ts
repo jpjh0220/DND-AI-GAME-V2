@@ -150,13 +150,22 @@ async function callClaude(prompt: string, config: ProviderConfig): Promise<any> 
 }
 
 async function callOpenAI(prompt: string, config: ProviderConfig): Promise<any> {
+    if (config.providerId === 'openai-compatible' && !config.baseUrl?.trim()) {
+        throw new Error('OpenAI-Compatible provider requires a Base URL (e.g. https://openrouter.ai/api/v1)');
+    }
     const baseUrl = config.baseUrl?.replace(/\/+$/, '') || 'https://api.openai.com/v1';
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
+    };
+    // OpenRouter requires HTTP-Referer and optionally X-Title
+    if (config.providerId === 'openai-compatible') {
+        headers['HTTP-Referer'] = window.location.origin;
+        headers['X-Title'] = 'Mythic Realms RPG';
+    }
     const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.apiKey}`,
-        },
+        headers,
         body: JSON.stringify({
             model: config.model,
             messages: [{ role: 'user', content: prompt }],
@@ -165,11 +174,11 @@ async function callOpenAI(prompt: string, config: ProviderConfig): Promise<any> 
     });
     if (!response.ok) {
         const err = await response.text();
-        throw new Error(`OpenAI API error (${response.status}): ${err}`);
+        throw new Error(`${config.providerId === 'openai-compatible' ? 'API' : 'OpenAI API'} error (${response.status}): ${err}`);
     }
     const data = await response.json();
     const rawText = data.choices?.[0]?.message?.content;
-    if (!rawText) throw new Error("No response text from OpenAI.");
+    if (!rawText) throw new Error("No response text from API.");
     return parseJSONResponse(rawText);
 }
 
