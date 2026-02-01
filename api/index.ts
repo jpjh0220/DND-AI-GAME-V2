@@ -6,6 +6,7 @@ import { calculateEncumbrance, calculateMaxCarry } from '../systems/calculations
 import { ITEMS_DB, LOCATIONS_DB, ENEMIES_DB, ACHIEVEMENTS_DB, NPCS_DB, SHOPS_DB, ENCOUNTERS_DB } from '../registries/index';
 import { RetrievedMemory, formatRetrievedMemories } from '../systems/memory';
 import { GMMode, determineGMMode, getSystemPrompt } from '../systems/prompts';
+import { computeGameSnapshot, formatSnapshotForPrompt, GameSnapshot } from '../systems/engine';
 
 const MODEL_IMAGE = "gemini-2.5-flash-image";
 const MODEL_TTS = "gemini-2.5-flash-preview-tts";
@@ -16,18 +17,17 @@ export const buildPrompt = (
     actionText: string,
     enemy?: Enemy | null,
     skillCheckResult?: { skill: string; success: boolean },
-    isWorldEventTriggered: boolean = false, // Now implies a roll on ENCOUNTERS_DB
-    retrievedMemories: RetrievedMemory[] = [] // RAG: relevant past memories
+    isWorldEventTriggered: boolean = false,
+    retrievedMemories: RetrievedMemory[] = []
 ): string => {
-    const activeQuests = player.quests?.filter(q => q.status === 'active').map(q => q.title).join(', ') || 'None';
-    const playerWeaponDamage = player.equipment.mainHand?.damageRoll || "1d4";
-    const playerFeats = player.feats?.join(', ') || 'None';
-    const playerStatusEffects = player.statusEffects.map(se => se.name).join(', ') || 'None';
+    // --- Compute full mechanical state via engine ---
+    const snapshot: GameSnapshot = computeGameSnapshot(player);
+    const characterState = formatSnapshotForPrompt(snapshot);
 
     // --- Prompt Chaining: Select specialized GM mode ---
     const gmMode: GMMode = determineGMMode(
         !!enemy,
-        undefined, // choice intent is resolved before prompt building
+        undefined,
         !!skillCheckResult,
         !!player.activeNPC,
         isWorldEventTriggered
@@ -37,95 +37,132 @@ export const buildPrompt = (
     // --- RAG: Format retrieved memories for context injection ---
     const memoryContext = formatRetrievedMemories(retrievedMemories);
 
-    // Summary of world geography to guide the DM
-    const worldAtlas = LOCATIONS_DB.map(loc =>
-      `${loc.name} (${loc.type}, Danger: ${loc.dangerLevel}): ${loc.description}. Connected to: ${loc.connections?.join(', ') || 'None'}. Available NPCs: ${loc.npcs?.map(id => NPCS_DB.find(n => n.id === id)?.name || id).join(', ') || 'None'}. Available Shops: ${loc.shopIds?.map(id => SHOPS_DB.find(s => s.id === id)?.name || id).join(', ') || 'None'}.`
-    ).join('\n');
+    // World geography (compact: only current location + connections)
+    const currentFacts = (world?.facts || []);
+    const currentLocName = currentFacts[0]?.replace('Arrived at ', '') || 'Unknown';
+    const currentLoc = LOCATIONS_DB.find(l => currentFacts.some(f => f.includes(l.name)));
+    const nearbyLocs = currentLoc?.connections
+        ?.map(id => LOCATIONS_DB.find(l => l.id === id))
+        .filter(Boolean)
+        .map(l => `${l!.name} (${l!.type}, Danger: ${l!.dangerLevel})`) || [];
 
     let prompt = `${systemPrompt}
 
-      IMPORTANT: Output JSON ONLY. No markdown, no code fences.
-      GM Mode: ${gmMode.toUpperCase()}
+IMPORTANT: Output JSON ONLY. No markdown, no code fences.
+GM Mode: ${gmMode.toUpperCase()}
 
-      World: Day ${world.day}, ${world.hour}:00. Weather: ${world.weather}.
-      Current Location Facts: ${(world?.facts || []).join(", ")}.
-      Geography & Atlas:
-      ${worldAtlas}
-      ${memoryContext}
-      Player: ${player.name} (${player.race} ${player.class}, Lvl ${player.level}).
-      HP: ${player.hpCurrent}/${player.hpMax}. MP: ${player.manaCurrent}/${player.manaMax}. ST: ${player.staminaCurrent}/${player.staminaMax}. AC: ${player.ac}.
-      Feats: ${playerFeats}.
-      Active Quests: ${activeQuests}.
-      Inventory: ${player.inventory.map(i => i.name).join(", ")}.
-      Status Effects: ${playerStatusEffects}.
-      Action: "${actionText}"
-      `;
+=== CRITICAL RULES ===
+1. NEVER change the subject, scene, or location unless the player explicitly requests it.
+2. STAY in the current scene. Do not skip ahead, fast-forward time, or introduce unrelated events.
+3. Respond ONLY to the player's stated action. Do not add extra actions the player didn't take.
+4. RESPECT the character's mechanical state below. A wounded, exhausted, or encumbered character should struggle. A well-equipped character should feel powerful.
+5. Reference the player's EQUIPPED GEAR, FEATS, and CONDITIONS in your narration. They matter.
+6. If the player has active STATUS EFFECTS or CONDITIONS, narrate their impact.
+7. Choices you offer MUST be relevant to the current scene. No random topic changes.
+8. NEVER teleport the player, introduce deus-ex-machina rescues, or resolve conflicts without player input.
+9. Maintain continuity with established world facts and previous events.
+10. The character's PERSONALITY (traits, ideals, bonds, flaws) should influence NPC reactions and available dialogue.
+
+=== WORLD STATE ===
+Day ${world.day}, ${world.hour}:00. Weather: ${world.weather}.
+Location Facts: ${currentFacts.join(", ")}.
+${currentLoc ? `Current Location: ${currentLoc.name} (${currentLoc.type}, Danger Level: ${currentLoc.dangerLevel}). ${currentLoc.description}` : ''}
+${nearbyLocs.length > 0 ? `Nearby: ${nearbyLocs.join(', ')}` : ''}
+${currentLoc?.npcs ? `NPCs here: ${currentLoc.npcs.map(id => NPCS_DB.find(n => n.id === id)?.name || id).join(', ')}` : ''}
+${currentLoc?.shopIds ? `Shops here: ${currentLoc.shopIds.map(id => SHOPS_DB.find(s => s.id === id)?.name || id).join(', ')}` : ''}
+
+${characterState}
+${memoryContext}
+
+Player Action: "${actionText}"
+`;
 
     if (isWorldEventTriggered) {
         prompt += `
-        RANDOM WORLD ENCOUNTER TRIGGERED: Based on the current location facts, choose one encounter from the ENCOUNTERS_DB.
-        Instruction: Narrate the action AND the encounter as a cohesive turn. If the player has the 'Alert' feat, they CANNOT be surprised by an ambush type encounter.
-        If the encounter is combat, start combat with the specified enemy. If social, introduce the NPC. If discovery, provide choices.
-        ENCOUNTERS_DB for reference (only use IDs, not full objects): ${JSON.stringify(ENCOUNTERS_DB.map(e => e.id))}
-        `;
+RANDOM WORLD ENCOUNTER TRIGGERED: Pick an encounter appropriate to this location.
+- If the player has the 'Alert' feat, they CANNOT be surprised.
+- Narrate the player's action FIRST, then weave the encounter in naturally.
+- Do NOT abandon the current scene to introduce the encounter.
+Available Encounter IDs: ${JSON.stringify(ENCOUNTERS_DB.map(e => e.id))}
+`;
     }
 
     if (skillCheckResult) {
+        const skillBonus = snapshot.skills.find(s => s.skill === skillCheckResult.skill);
         prompt += `
-        Skill Check Result: The player attempted a "${skillCheckResult.skill}" check and it was a ${skillCheckResult.success ? 'SUCCESS' : 'FAILURE'}.
-        Action Context: The player's original action was "${actionText}".
-        Instruction: Narrate the outcome based on this result. The turn is resolved.
-        `;
+=== SKILL CHECK RESOLVED ===
+Skill: ${skillCheckResult.skill} (Player bonus: ${skillBonus ? `+${skillBonus.bonus}` : 'unknown'}, ${skillBonus?.proficient ? 'Proficient' : 'Not proficient'})
+Result: ${skillCheckResult.success ? 'SUCCESS' : 'FAILURE'}
+Original Action: "${actionText}"
+Instruction: Narrate the outcome. Describe what the player attempted and what happened. The turn is resolved. Offer new choices that follow from this outcome.
+`;
     } else if (enemy) {
         prompt += `
-      COMBAT SCENE: ${enemy.name}.
-      Monster Lore: ${enemy.description || 'A dangerous foe.'}
-      Instructions:
-      1. This is the player's turn. Narrate the result.
-      2. Return 'playerAttackHitsEnemy' and 'enemyAttackHitsPlayer' booleans.
-      3. If the enemy dies, suggest an achievement ID like 'first_blood' or monster-specific killers in the patch 'achievement' field if applicable.
-      JSON Schema: { 
-        "narration": "string", 
-        "patch": { 
-            "playerAttackHitsEnemy": "boolean",
-            "enemyAttackHitsPlayer": "boolean",
-            "xpDelta": 0, 
-            "endCombat": false,
-            "scenePrompt": "cinematic battle art",
-            "achievement": "string (optional achievement id)",
-            "addStatusEffect": {"id": "string", "duration": "number|'permanent'"}, // New
-            "removeStatusEffect": "string" // New (id of status effect to remove)
-        } 
-      }`;
+=== COMBAT ===
+Enemy: ${enemy.name} (HP: ${enemy.hp}/${enemy.hpMax}, AC: ${enemy.ac}, Damage: ${enemy.damageRoll})
+${enemy.description ? `Lore: ${enemy.description}` : ''}
+${enemy.resistances?.length ? `Resistances: ${enemy.resistances.join(', ')}` : ''}
+${enemy.vulnerabilities?.length ? `Vulnerabilities: ${enemy.vulnerabilities.join(', ')}` : ''}
+
+Player weapon: ${snapshot.weapon ? `${snapshot.weapon.name} (${snapshot.weapon.damageRoll}+${snapshot.weapon.damageBonus})` : 'Unarmed (1d4)'}
+Player AC: ${snapshot.combat.ac} | Attack bonus: +${snapshot.combat.attackBonus}
+${snapshot.activeFeats.length > 0 ? `Combat-relevant feats: ${snapshot.activeFeats.map(f => `${f.name}: ${f.mechanical}`).join('; ')}` : ''}
+${snapshot.conditions.exhaustionLevel >= 3 ? 'WARNING: Player has disadvantage on attacks (Exhaustion 3+)' : ''}
+
+Instructions:
+1. This is the player's turn. Narrate what happens based on their action.
+2. Reference the player's weapon and fighting style by name.
+3. Return playerAttackHitsEnemy and enemyAttackHitsPlayer booleans.
+4. If enemy HP would drop to 0, set endCombat: true and describe the killing blow.
+5. Account for the player's feats and conditions in the narration.
+
+JSON Schema: {
+  "narration": "string",
+  "patch": {
+    "playerAttackHitsEnemy": "boolean",
+    "enemyAttackHitsPlayer": "boolean",
+    "xpDelta": 0,
+    "endCombat": false,
+    "scenePrompt": "cinematic battle art description",
+    "achievement": "string (optional achievement id)",
+    "addStatusEffect": {"id": "string", "duration": "number|'permanent'"},
+    "removeStatusEffect": "string"
+  }
+}`;
     } else {
         prompt += `
-      Instructions:
-      1. Assign resource costs: 'manaCost' (MP) or 'staminaCost' (ST).
-      2. If an NPC is introduced, include 'npc' object in patch, using IDs from NPCS_DB.
-      3. If a shop is to be opened, use 'startShop' with 'shopId' from SHOPS_DB.
-      4. If a world encounter was triggered, ensure 'startEncounter' is used in patch if applicable.
-      5. If the player completes a milestone (visited 10 locations, reached wealth, etc.), include the 'achievement' ID from the database in the patch.
-      Available Achievement IDs: ${ACHIEVEMENTS_DB.map(a => a.id).join(', ')}
-      Available NPC IDs: ${NPCS_DB.map(n => n.id).join(', ')}
-      Available Shop IDs: ${SHOPS_DB.map(s => s.id).join(', ')}
-      Available Encounter IDs: ${ENCOUNTERS_DB.map(e => e.id).join(', ')}
-      JSON Schema: { 
-        "narration": "string", 
-        "choices": [{ "id": "str", "label": "str", "intent": "travel|combat|social|buy|rest|system|craft", "manaCost": 0, "staminaCost": 0 }], 
-        "patch": { 
-            "timeDelta": 1, "currencyDelta": 0, "hpDelta": 0, "addItemId": "string", "addFact": "string", "xpDelta": 0,
-            "scenePrompt": "fantasy environment concept art",
-            "startCombat": {"name": "string", "hp": "number", "ac": "number", "damageRoll": "string"},
-            "startShop": { "shopId": "string" }, // Updated: now refers to an ID from SHOPS_DB
-            "skillCheck": { "skill": "string", "dc": "number" },
-            "npc": { "id": "string" }, // Updated: now refers to an ID from NPCS_DB
-            "achievement": "string (optional achievement id)",
-            "eventTitle": "string (optional if event triggered)",
-            "addStatusEffect": {"id": "string", "duration": "number|'permanent'"}, // New
-            "removeStatusEffect": "string", // New
-            "startEncounter": {"id": "string"} // New
-        } 
-      }`;
+=== EXPLORATION / SOCIAL ===
+Instructions:
+1. Respond ONLY to the player's stated action. Stay in the current scene.
+2. If the action costs resources, set manaCost/staminaCost in choices.
+3. Reference the player's equipped gear, conditions, and feats when relevant.
+4. Offer 2-4 choices that are NATURAL CONTINUATIONS of the current scene.
+5. Each choice should feel different (cautious vs bold, social vs physical, etc).
+6. If the player is wounded, starving, exhausted, or encumbered — reflect it in the narration.
+
+Available NPC IDs (only use these): ${NPCS_DB.map(n => n.id).join(', ')}
+Available Shop IDs (only use these): ${SHOPS_DB.map(s => s.id).join(', ')}
+Available Encounter IDs: ${ENCOUNTERS_DB.map(e => e.id).join(', ')}
+Available Achievement IDs: ${ACHIEVEMENTS_DB.map(a => a.id).join(', ')}
+
+JSON Schema: {
+  "narration": "string",
+  "choices": [{ "id": "str", "label": "str", "intent": "travel|combat|social|buy|rest|system|craft", "manaCost": 0, "staminaCost": 0 }],
+  "patch": {
+    "timeDelta": 1, "currencyDelta": 0, "hpDelta": 0,
+    "addItemId": "string", "addFact": "string", "xpDelta": 0,
+    "scenePrompt": "fantasy environment concept art",
+    "startCombat": {"name": "string", "hp": "number", "ac": "number", "damageRoll": "string"},
+    "startShop": { "shopId": "string" },
+    "skillCheck": { "skill": "string", "dc": "number" },
+    "npc": { "id": "string" },
+    "achievement": "string (optional)",
+    "eventTitle": "string (optional)",
+    "addStatusEffect": {"id": "string", "duration": "number|'permanent'"},
+    "removeStatusEffect": "string",
+    "startEncounter": {"id": "string"}
+  }
+}`;
     }
     
     return prompt;

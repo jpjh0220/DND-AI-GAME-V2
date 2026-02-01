@@ -3,10 +3,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Player } from '../types';
-// FIX: Corrected import path to point to the index file within the directory.
 import { RACES, CLASSES, BACKGROUNDS, FEATS_DB } from '../registries/index';
-// FIX: Corrected import path to point to the index file within the directory.
-import { getMod, assignDefaultStats } from '../systems/index';
+import { getMod, assignDefaultStats, getEligibleFeats } from '../systems/index';
+import type { FeatPrerequisite } from '../systems/engine';
 import { CreationInput, CreationGrid } from './ui';
 
 const STATS: (keyof Player['stats'])[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
@@ -116,25 +115,44 @@ export const CharacterCreator: React.FC<{ onComplete: (data: Player) => void, on
                 <CreationInput label="Bonds" value={data.personality.bonds} onChange={v => setData({...data, personality: {...data.personality, bonds: v}})} placeholder="What is important to your hero?" />
                 <CreationInput label="Flaws" value={data.personality.flaws} onChange={v => setData({...data, personality: {...data.personality, flaws: v}})} placeholder="What are your hero's weaknesses?" />
             </>);
-            case 7: return (<>
-                <label className="text-xs uppercase font-bold text-slate-500 block mb-2">Feat</label>
-                <p className="text-sm text-slate-400 mb-4">At 1st level, you gain one feat of your choice.</p>
-                <div className="space-y-2">
-                {FEATS_DB.map(feat => {
-                    const isSelected = data.feats.includes(feat.id);
-                    return (
-                        <button
-                            key={feat.id}
-                            onClick={() => setData({...data, feats: [feat.id]})}
-                            className={`w-full p-4 rounded-xl border text-left transition-all ${isSelected ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'}`}
-                        >
-                            <div className="font-bold">{feat.name}</div>
-                            <div className={`text-xs ${isSelected ? 'text-indigo-200' : 'text-slate-500'}`}>{feat.desc}</div>
-                        </button>
-                    )
-                })}
-                </div>
-            </>);
+            case 7: {
+                const eligibleFeats = getEligibleFeats(data.race, data.class, data.background, data.stats, []);
+                const available = eligibleFeats.filter(f => f.eligible);
+                const unavailable = eligibleFeats.filter(f => !f.eligible);
+                return (<>
+                    <label className="text-xs uppercase font-bold text-slate-500 block mb-2">Feat</label>
+                    <p className="text-sm text-slate-400 mb-4">Choose one feat. Only feats matching your {data.race} {data.class} are shown.</p>
+                    <div className="space-y-2">
+                    {available.map(feat => {
+                        const isSelected = data.feats.includes(feat.id);
+                        return (
+                            <button
+                                key={feat.id}
+                                onClick={() => setData({...data, feats: [feat.id]})}
+                                className={`w-full p-4 rounded-xl border text-left transition-all ${isSelected ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'}`}
+                            >
+                                <div className="font-bold">{feat.name}</div>
+                                <div className={`text-xs ${isSelected ? 'text-indigo-200' : 'text-slate-500'}`}>{feat.desc}</div>
+                                {feat.req !== 'None' && <div className="text-[10px] mt-1 text-indigo-400/60 uppercase">Req: {feat.req}</div>}
+                            </button>
+                        );
+                    })}
+                    </div>
+                    {unavailable.length > 0 && (
+                        <details className="mt-4">
+                            <summary className="text-[10px] text-slate-600 uppercase cursor-pointer hover:text-slate-400">{unavailable.length} feats unavailable for your build</summary>
+                            <div className="space-y-1 mt-2">
+                            {unavailable.map(feat => (
+                                <div key={feat.id} className="p-3 rounded-xl border border-slate-800/50 bg-slate-900/30 opacity-40">
+                                    <div className="font-bold text-slate-500 text-sm">{feat.name}</div>
+                                    <div className="text-[10px] text-red-400/70">{feat.reason}</div>
+                                </div>
+                            ))}
+                            </div>
+                        </details>
+                    )}
+                </>);
+            }
             default: return <div>Review</div>
         }
     }
