@@ -220,8 +220,8 @@ export default function App() {
 
   const executeTurn = async (actionText: string, choice?: Choice, rollOverride?: SkillCheckDetails & { dc: number, text: string }) => {
     if (choice?.intent === 'system') { if (choice.id === 'settings') setView('settings'); return; }
-    // NEW: Handle crafting intent
-    if (choice?.intent === 'craft') { if (choice.id === 'crafting') setView('crafting'); return; }
+    if (choice?.intent === 'craft') { setView('crafting'); return; }
+    if (choice?.intent === 'rest') { setView('rest'); return; }
 
     if (processing || !actionText || !actionText.trim() || !player || !currentSlotId) return;
 
@@ -514,14 +514,37 @@ export default function App() {
         finalLog.push({ type: 'narration' as const, text: outcomeText });
       }
       
-      const cleanedChoices = (aiData.choices || []).map((c: Choice) => ({
-        ...c,
-        label: c.label
-            .replace(/\s*\(\)$/, '')
-            .replace(/commotior/gi, 'commotion')
-            .replace(/^Speak again, inq$/, 'Speak again, inquire further')
-            .trim()
-      }));
+      const cleanedChoices = (aiData.choices || [])
+        .map((c: Choice) => ({
+          ...c,
+          label: c.label
+              .replace(/\s*\(\)$/, '')
+              .replace(/commotior/gi, 'commotion')
+              .replace(/^Speak again, inq$/, 'Speak again, inquire further')
+              .trim()
+        }))
+        .filter((c: Choice) => {
+          // Filter out choices that reference abilities the player doesn't have
+          const labelLower = c.label.toLowerCase();
+
+          // Filter spell-casting choices if player has no spells
+          if (nextPlayer.spells.length === 0 && (labelLower.includes('cast ') || labelLower.includes('spell'))) {
+            return false;
+          }
+
+          // Filter specific "Cast X" choices if player doesn't know that spell
+          const castMatch = labelLower.match(/^cast\s+(.+)/);
+          if (castMatch && nextPlayer.spells.length > 0) {
+            const spellName = castMatch[1].replace(/[.!?]$/, '').trim();
+            const hasSpell = nextPlayer.spells.some(s => s.name.toLowerCase() === spellName);
+            if (!hasSpell) return false;
+          }
+
+          // Filter empty or invalid labels
+          if (!c.label || c.label.length < 2) return false;
+
+          return true;
+        });
 
       // RAG: Store new narration and events as memories for future retrieval
       if (memoryStoreRef.current && aiData.narration) {

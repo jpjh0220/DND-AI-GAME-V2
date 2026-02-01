@@ -158,6 +158,7 @@ Instructions:
 4. Offer 2-4 choices that are NATURAL CONTINUATIONS of the current scene.
 5. Each choice should feel different (cautious vs bold, social vs physical, etc).
 6. If the player is wounded, starving, exhausted, or encumbered — reflect it in the narration.
+7. CHOICE CONSTRAINTS: Only offer choices the player can actually perform. If the player has NO SPELLS (see KNOWN SPELLS above), do NOT offer spell-casting choices. If they have spells, only reference spells from their KNOWN SPELLS list by exact name. Only offer "rest" choices if the player is injured or tired.
 
 Available NPC IDs at this location (ONLY use these): ${currentLoc?.npcs?.join(', ') || 'none — do NOT introduce NPCs'}
 Available Shop IDs (only use these): ${SHOPS_DB.map(s => s.id).join(', ')}
