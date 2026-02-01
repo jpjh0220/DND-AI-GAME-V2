@@ -4,7 +4,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Heart, Zap, Shield, Swords, Send } from 'lucide-react';
+import { Heart, Zap, Shield, Swords, Send, FlaskConical, Wind, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { Player, Enemy, LogEntry } from '../types';
 import { Bar, AudioPlayer } from './ui';
 
@@ -29,11 +29,15 @@ interface CombatScreenProps {
 export const CombatScreen: React.FC<CombatScreenProps> = ({ player, enemy, onAction, log, scrollRef, processing, input, setInput }) => {
     const [animationClass, setAnimationClass] = useState('');
     const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
+    const [showSpells, setShowSpells] = useState(false);
+    const [showItems, setShowItems] = useState(false);
     const prevPlayerHp = useRef(player.hpCurrent);
     const prevEnemyHp = useRef(enemy.hp);
 
     const weaponName = player.equipment.mainHand?.name || "unarmed strike";
     const topSpell = player.spells[0]?.name;
+    const healingItems = player.inventory.filter(i => i.type === 'potion' || i.effect?.hp || i.type === 'consumable');
+    const activeEffects = player.statusEffects || [];
 
     useEffect(() => {
         let trigger = '';
@@ -127,27 +131,75 @@ export const CombatScreen: React.FC<CombatScreenProps> = ({ player, enemy, onAct
                     )
                 })}
             </div>
-            <div className="bg-slate-900 border-t border-slate-800 p-3 pb-safe shrink-0">
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                    <button disabled={processing} onClick={() => onAction(`I strike ${enemy.name} with my ${weaponName}`)} className="p-4 bg-red-900/20 border border-red-500/30 hover:bg-red-800/40 rounded-xl font-bold flex flex-col items-center justify-center transition-all disabled:opacity-50 active:scale-95">
-                        <Swords size={20} className="mb-1 text-red-400"/>
-                        <span className="text-[10px] text-white">Attack</span>
-                        <span className="text-[8px] text-red-300/60 uppercase truncate w-full px-1 text-center">{weaponName}</span>
-                    </button>
-                    {topSpell ? (
-                        <button disabled={processing} onClick={() => onAction(`I cast ${topSpell} upon ${enemy.name}`)} className="p-4 bg-blue-900/20 border border-blue-500/30 hover:bg-blue-800/40 rounded-xl font-bold flex flex-col items-center justify-center transition-all disabled:opacity-50 active:scale-95">
-                            <Zap size={20} className="mb-1 text-blue-400"/>
-                            <span className="text-[10px] text-white">Cast</span>
-                            <span className="text-[8px] text-blue-300/60 uppercase truncate w-full px-1 text-center">{topSpell}</span>
-                        </button>
-                    ) : (
-                         <button disabled={processing} onClick={() => onAction("I assume a defensive stance")} className="p-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold flex flex-col items-center justify-center transition-all disabled:opacity-50 text-slate-400 active:scale-95">
-                            <Shield size={20} className="mb-1"/>
-                            <span className="text-[10px]">Defend</span>
-                        </button>
-                    )}
+            {/* Status Effects Display */}
+            {activeEffects.length > 0 && (
+                <div className="px-3 py-1.5 bg-slate-900/70 border-t border-slate-800 flex gap-1.5 overflow-x-auto shrink-0">
+                    {activeEffects.map((eff, i) => (
+                        <span key={`eff-${i}`} className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase whitespace-nowrap ${
+                            (eff.effect.hpPerTurn && eff.effect.hpPerTurn > 0) || eff.effect.acModifier && eff.effect.acModifier > 0 || eff.effect.damageModifier && eff.effect.damageModifier > 0
+                                ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-red-900/40 text-red-400 border border-red-500/30'
+                        }`}>
+                            {eff.name} {eff.duration !== 'permanent' && `(${eff.duration}t)`}
+                        </span>
+                    ))}
                 </div>
-                 <div className="flex gap-2">
+            )}
+
+            <div className="bg-slate-900 border-t border-slate-800 p-3 pb-safe shrink-0">
+                {/* Primary Actions Row */}
+                <div className="grid grid-cols-4 gap-1.5 mb-2">
+                    <button disabled={processing} onClick={() => onAction(`I strike ${enemy.name} with my ${weaponName}`)} className="p-3 bg-red-900/20 border border-red-500/30 hover:bg-red-800/40 rounded-xl font-bold flex flex-col items-center justify-center transition-all disabled:opacity-50 active:scale-95">
+                        <Swords size={18} className="mb-0.5 text-red-400"/>
+                        <span className="text-[9px] text-white">Attack</span>
+                        <span className="text-[7px] text-red-300/60 uppercase truncate w-full px-0.5 text-center">{weaponName}</span>
+                    </button>
+                    <button disabled={processing} onClick={() => player.spells.length > 1 ? setShowSpells(!showSpells) : topSpell ? onAction(`I cast ${topSpell} upon ${enemy.name}`) : onAction("I assume a defensive stance")} className="p-3 bg-blue-900/20 border border-blue-500/30 hover:bg-blue-800/40 rounded-xl font-bold flex flex-col items-center justify-center transition-all disabled:opacity-50 active:scale-95">
+                        <Zap size={18} className="mb-0.5 text-blue-400"/>
+                        <span className="text-[9px] text-white">{topSpell ? 'Spells' : 'Defend'}</span>
+                        {topSpell && <span className="text-[7px] text-blue-300/60">{player.spells.length} known</span>}
+                    </button>
+                    <button disabled={processing} onClick={() => setShowItems(!showItems)} className="p-3 bg-amber-900/20 border border-amber-500/30 hover:bg-amber-800/40 rounded-xl font-bold flex flex-col items-center justify-center transition-all disabled:opacity-50 active:scale-95">
+                        <FlaskConical size={18} className="mb-0.5 text-amber-400"/>
+                        <span className="text-[9px] text-white">Items</span>
+                        <span className="text-[7px] text-amber-300/60">{healingItems.length} usable</span>
+                    </button>
+                    <button disabled={processing} onClick={() => onAction(`I attempt to flee from ${enemy.name}`)} className="p-3 bg-slate-800 border border-slate-600/30 hover:bg-slate-700 rounded-xl font-bold flex flex-col items-center justify-center transition-all disabled:opacity-50 active:scale-95">
+                        <Wind size={18} className="mb-0.5 text-slate-400"/>
+                        <span className="text-[9px] text-slate-300">Flee</span>
+                    </button>
+                </div>
+
+                {/* Spell Picker Dropdown */}
+                {showSpells && player.spells.length > 0 && (
+                    <div className="mb-2 max-h-32 overflow-y-auto rounded-lg border border-blue-500/20 bg-slate-950/80">
+                        {player.spells.map((spell, i) => (
+                            <button key={`spell-${i}`} disabled={processing || (spell.cost > player.manaCurrent)} onClick={() => { onAction(`I cast ${spell.name} upon ${spell.target === 'self' ? 'myself' : enemy.name}`); setShowSpells(false); }}
+                                className="w-full px-3 py-2 text-left text-xs hover:bg-blue-900/30 border-b border-slate-800 last:border-0 flex justify-between items-center disabled:opacity-40 transition-colors">
+                                <span className="text-white font-medium">{spell.name} <span className="text-slate-500">({spell.school})</span></span>
+                                <span className="text-blue-400 font-mono text-[10px]">{spell.cost} MP</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Item Picker Dropdown */}
+                {showItems && (
+                    <div className="mb-2 max-h-32 overflow-y-auto rounded-lg border border-amber-500/20 bg-slate-950/80">
+                        {healingItems.length === 0 ? (
+                            <div className="px-3 py-2 text-xs text-slate-500 text-center">No usable items</div>
+                        ) : healingItems.map((item, i) => (
+                            <button key={`item-${i}`} disabled={processing} onClick={() => { onAction(`I use my ${item.name}`); setShowItems(false); }}
+                                className="w-full px-3 py-2 text-left text-xs hover:bg-amber-900/30 border-b border-slate-800 last:border-0 flex justify-between items-center disabled:opacity-40 transition-colors">
+                                <span className="text-white font-medium">{item.name}</span>
+                                {item.effect?.hp && <span className="text-emerald-400 text-[10px]">+{item.effect.hp} HP</span>}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Custom Action Input */}
+                <div className="flex gap-2">
                     <input className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none" placeholder="Custom action..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && onAction(input)} disabled={processing}/>
                     <button onClick={() => onAction(input)} disabled={processing||!input.trim()} className="p-3 bg-indigo-600 rounded-xl text-white disabled:opacity-50 hover:bg-indigo-500 transition-colors"><Send size={18}/></button>
                 </div>

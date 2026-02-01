@@ -48,4 +48,45 @@ export const LOCATIONS_DB: Location[] = [
     { id: 'plane_of_fire', name: "Plane of Fire", type: "dungeon", description: "A portal to the elemental plane of fire, where salamanders and efreet dwell.", connections: ['mage_academy'], monsters: ['salamander', 'fire_giant'], dangerLevel: 8 },
     { id: 'abyss_gate', name: "Abyssal Rift", type: "dungeon", description: "A tear in reality leading to the demonic Abyss, sealed by ancient wards.", connections: ['catacombs'], monsters: ['bone_devil', 'wraith'], dangerLevel: 10 },
     { id: 'lizardfolk_village', name: "Lizardfolk Village", type: "settlement", description: "A cluster of mud-and-reed huts built on stilts above the swamp. The lizardfolk here are wary of outsiders but open to trade.", connections: ['marshes_of_sorrow'], npcs: [], monsters: [], dangerLevel: 3 },
+
+    // === NEW: Desert Region ===
+    { id: 'sandstone_oasis', name: "Sandstone Oasis", type: "town", description: "A small trading post surrounding a spring in the desert. Palm trees and canvas awnings provide shade for weathered merchants.", connections: ['desert_road', 'sun_temple', 'scorpion_wastes'], npcs: [], shopIds: ['general_store'], dangerLevel: 1, monsters: [] },
+    { id: 'desert_road', name: "Desert Road", type: "wilderness", description: "A sun-scorched trade route between distant cities. Mirages shimmer on the horizon and sand devils whirl across the dunes.", connections: ['sandstone_oasis', 'crossroads', 'nomad_encampment'], monsters: ['sand_crab', 'bandit'], dangerLevel: 3 },
+    { id: 'scorpion_wastes', name: "Scorpion Wastes", type: "wilderness", description: "A barren expanse of cracked earth and bleached bones. Giant scorpions and sand worms lurk beneath the surface.", connections: ['sandstone_oasis', 'ancient_pyramid'], monsters: ['sand_crab', 'bulette', 'purple_worm'], dangerLevel: 6 },
+    { id: 'ancient_pyramid', name: "Pyramid of the Sun King", type: "dungeon", description: "A colossal pyramid sealed for millennia, its traps still lethal and its guardians still vigilant.", connections: ['scorpion_wastes'], monsters: ['skeleton', 'animated_armor', 'helmed_horror', 'iron_golem'], dangerLevel: 8 },
+    { id: 'sun_temple', name: "Temple of the Scorching Sun", type: "temple", description: "A golden-domed temple where fire priests tend eternal flames and offer blessings to desert travelers.", connections: ['sandstone_oasis'], npcs: [], dangerLevel: 1, monsters: [] },
+    { id: 'nomad_encampment', name: "Nomad Encampment", type: "settlement", description: "A sprawl of colorful tents where desert nomads rest between journeys. They trade in rare spices and desert lore.", connections: ['desert_road'], npcs: [], dangerLevel: 1, monsters: [] },
+
+    // === NEW: Coastal / Underwater ===
+    { id: 'coral_reef_ruins', name: "Coral Reef Ruins", type: "dungeon", description: "Submerged elven ruins overgrown with living coral. Bioluminescent fish illuminate halls once walked by surface dwellers.", connections: ['shipwreck_shoals'], monsters: ['sahuagin', 'reef_stalker', 'reef_guardian', 'water_elemental'], dangerLevel: 5 },
+    { id: 'pirates_cove', name: "Pirate's Cove", type: "settlement", description: "A hidden harbor carved into sea cliffs, home to smugglers, pirates, and those who ask no questions.", connections: ['stormwatch_harbor', 'tideglass_cliffs'], npcs: [], shopIds: ['black_market'], dangerLevel: 3, monsters: [] },
+    { id: 'sea_serpent_strait', name: "Sea Serpent Strait", type: "wilderness", description: "A narrow channel between rocky islands where massive sea creatures hunt. Ships cross quickly or not at all.", connections: ['stormwatch_harbor', 'merfolk_grotto'], monsters: ['water_elemental', 'deepsea_stalker', 'kraken'], dangerLevel: 8 },
+    { id: 'merfolk_grotto', name: "Merfolk Grotto", type: "settlement", description: "An underwater cavern city of the merfolk, accessible through a submerged tunnel. Air pockets allow surface-dwellers to breathe.", connections: ['sea_serpent_strait'], npcs: [], dangerLevel: 2, monsters: [] },
+
+    // === NEW: Enchanted Forest ===
+    { id: 'fey_crossing', name: "Fey Crossing", type: "landmark", description: "A shimmering portal between worlds where the Material Plane thins against the Feywild. Mushroom rings glow with otherworldly light.", connections: ['whispering_woods', 'feywild_glade'], monsters: ['quasit'], dangerLevel: 4 },
+    { id: 'feywild_glade', name: "Feywild Glade", type: "wilderness", description: "A realm of impossible beauty — oversaturated colors, singing flowers, and time that flows like honey. Nothing is as it seems.", connections: ['fey_crossing', 'archfey_court'], monsters: ['displacer_beast', 'green_hag', 'phase_spider'], dangerLevel: 5 },
+    { id: 'archfey_court', name: "Court of the Archfey", type: "castle", description: "A palace of living crystal and moonlight where the Archfey holds eternal revels. Mortals who linger may never return.", connections: ['feywild_glade'], npcs: [], dangerLevel: 7, monsters: [] },
+    { id: 'blighted_grove', name: "Blighted Grove", type: "wilderness", description: "A corrupted section of forest where trees weep black sap and the ground squelches with rot. Something terrible happened here.", connections: ['whispering_woods'], monsters: ['twig_blight', 'needle_blight', 'shambling_mound', 'treant'], dangerLevel: 5 },
+
+    // === NEW: Underdark Expansion ===
+    { id: 'fungal_caverns', name: "Fungal Caverns", type: "dungeon", description: "Vast underground chambers carpeted with bioluminescent mushrooms the size of trees. Myconid colonies tend these gardens in silence.", connections: ['underdark_gate', 'drow_outpost'], monsters: ['violet_fungus', 'hook_horror', 'otyugh'], dangerLevel: 5 },
+    { id: 'drow_outpost', name: "Drow Outpost", type: "settlement", description: "A dark elf military outpost carved from obsidian. Spider silk banners hang from stalactite towers.", connections: ['fungal_caverns', 'aboleth_lake'], monsters: ['drow', 'drider', 'phase_spider'], dangerLevel: 7 },
+    { id: 'aboleth_lake', name: "Lake of Lost Memories", type: "dungeon", description: "A vast underground lake of perfectly still water. An aboleth lurks in its depths, hoarding the memories of civilizations long dead.", connections: ['drow_outpost'], monsters: ['aboleth', 'chuul', 'intellect_devourer'], dangerLevel: 9 },
+
+    // === NEW: Volcanic / Fire Region ===
+    { id: 'ember_wastes', name: "Ember Wastes", type: "wilderness", description: "A volcanic hellscape of lava rivers and ash storms. The air shimmers with heat and reeks of sulfur.", connections: ['plane_of_fire', 'obsidian_fortress'], monsters: ['fire_elemental', 'salamander', 'hell_hound'], dangerLevel: 7 },
+    { id: 'obsidian_fortress', name: "Obsidian Fortress", type: "castle", description: "A fire giant stronghold built from volcanic glass. The forges within produce weapons of terrible power.", connections: ['ember_wastes'], monsters: ['fire_giant', 'iron_golem', 'helmed_horror'], dangerLevel: 9, encounters: [] },
+
+    // === NEW: Celestial / Divine ===
+    { id: 'astral_bridge', name: "Astral Bridge", type: "landmark", description: "A bridge of crystallized starlight spanning the void between planes. Travelers here may encounter beings of immense power.", connections: ['celestial_sanctum', 'abyss_gate'], monsters: ['solar', 'balor'], dangerLevel: 10 },
+
+    // === NEW: Urban Expansion ===
+    { id: 'sewers', name: "Silverspire Sewers", type: "dungeon", description: "A labyrinth of tunnels beneath the capital city. Thieves, cultists, and worse lurk in the fetid darkness.", connections: ['silverspire', 'thieves_guild'], monsters: ['rat', 'otyugh', 'gelatinous_cube', 'werewolf'], dangerLevel: 4 },
+    { id: 'gladiator_pits', name: "Gladiator Pits", type: "dungeon", description: "Underground fighting rings beneath the Colosseum where illegal death matches draw wealthy spectators.", connections: ['arena'], monsters: ['minotaur', 'ettin', 'chimera'], dangerLevel: 6 },
+    { id: 'clock_tower', name: "The Broken Clock Tower", type: "dungeon", description: "An abandoned clock tower in the old quarter where time moves strangely. Ghosts of clockworkers still tend its gears.", connections: ['silverspire'], monsters: ['ghost', 'animated_armor', 'flying_sword', 'helmed_horror'], dangerLevel: 5 },
+
+    // === NEW: Northern Wastes ===
+    { id: 'tundra_expanse', name: "Tundra Expanse", type: "wilderness", description: "An endless frozen plain where howling winds strip flesh from bone. Yetis and frost worms hunt across the white void.", connections: ['frozen_peaks', 'ice_tomb'], monsters: ['wolf', 'dire_wolf', 'abominable_yeti'], dangerLevel: 6 },
+    { id: 'ice_tomb', name: "Tomb of the Frost Lich", type: "dungeon", description: "A frozen mausoleum entombed in ancient ice. A lich of terrible power sleeps within, guarded by frozen undead.", connections: ['tundra_expanse'], monsters: ['lich', 'wight', 'specter', 'wraith'], dangerLevel: 10 },
 ];
