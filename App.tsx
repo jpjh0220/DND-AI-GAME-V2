@@ -86,6 +86,24 @@ export default function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  const persistGame = useCallback((slotId: string | null, state: GameState, options?: { showIndicator?: boolean; silent?: boolean }) => {
+    if (!slotId) return false;
+    try {
+      saveGameLocal(slotId, state);
+      if (options?.showIndicator) {
+        setShowSaveIndicator(true);
+        setTimeout(() => setShowSaveIndicator(false), 1500);
+      }
+      return true;
+    } catch (error) {
+      console.error('Failed to save game state:', error);
+      if (!options?.silent) {
+        addToast("Unable to save progress. Your browser storage may be full.", "danger");
+      }
+      return false;
+    }
+  }, [addToast]);
+
   const updateGameState = useCallback((newGameState: GameState) => {
     setPlayer(newGameState.player);
     setWorld(newGameState.world);
@@ -165,7 +183,7 @@ export default function App() {
       dp.statusEffects = [];
       setPlayer(dp); setWorld(dw); setLog(dl); setChoices(dc);
       setCurrentSlotId(targetSlotId); localStorage.setItem('lastPlayedSlotId', targetSlotId);
-      saveGameLocal(targetSlotId, { player: dp, world: dw, log: dl, choices: dc, view: 'game', enemy: null });
+      persistGame(targetSlotId, { player: dp, world: dw, log: dl, choices: dc, view: 'game', enemy: null });
       // Initialize fresh memory store for new game
       const store = new MemoryStore(targetSlotId);
       await store.load();
@@ -527,16 +545,14 @@ export default function App() {
           nextPlayer.hpCurrent = 0;
           finalLog.push({ type: 'worldevent', text: `${nextPlayer.name} has fallen. The light fades from your eyes as darkness claims you...` });
           setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices([]);
-          saveGameLocal(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: [], view: 'game', enemy: null });
+          persistGame(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: [], view: 'game', enemy: null });
           addToast('You have died. Start a new game from the menu.', 'danger');
           setProcessing(false);
           return;
       }
 
       setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices(cleanedChoices);
-      saveGameLocal(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: cleanedChoices, view: currentEnemy ? 'combat' : 'game', enemy: currentEnemy });
-      setShowSaveIndicator(true);
-      setTimeout(() => setShowSaveIndicator(false), 1500);
+      persistGame(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: cleanedChoices, view: currentEnemy ? 'combat' : 'game', enemy: currentEnemy }, { showIndicator: true });
     } catch (err) {
       console.error(err);
       addToast("The ethereal plane feels distant... (AI Error)", "danger");
@@ -551,7 +567,7 @@ export default function App() {
     p.achievements = [];
     p.statusEffects = [];
     setPlayer(p); setWorld(w); setLog(l); setChoices(c); setView('game');
-    saveGameLocal(currentSlotId, { player: p, world: w, log: l, choices: c, view: 'game', enemy: null });
+    persistGame(currentSlotId, { player: p, world: w, log: l, choices: c, view: 'game', enemy: null });
     // Initialize fresh memory store for new character
     const store = new MemoryStore(currentSlotId);
     await store.load();
@@ -642,7 +658,7 @@ export default function App() {
         next.ac = calculatePlayerAC(next);
         setPlayer(next);
         addToast(`Equipped ${it.name}`, 'success');
-        if (currentSlotId) saveGameLocal(currentSlotId, { player: next, world, log, choices, view, enemy });
+        persistGame(currentSlotId, { player: next, world, log, choices, view, enemy });
     }
   };
 
@@ -670,7 +686,7 @@ export default function App() {
     next.ac = calculatePlayerAC(next);
     setPlayer(next);
     addToast(`Unequipped ${it.name}`, 'info');
-    if (currentSlotId) saveGameLocal(currentSlotId, { player: next, world, log, choices, view, enemy });
+    persistGame(currentSlotId, { player: next, world, log, choices, view, enemy });
   };
 
   const handleGeneratePortrait = async () => {
@@ -683,7 +699,7 @@ export default function App() {
         const nextPlayer = { ...player, portrait };
         setPlayer(nextPlayer);
         addToast("Portrait manifested!", "success");
-        saveGameLocal(currentSlotId, { player: nextPlayer, world, log, choices, view, enemy });
+        persistGame(currentSlotId, { player: nextPlayer, world, log, choices, view, enemy });
       }
     } catch (e) {
       addToast("Failed to generate portrait", "danger");
@@ -709,7 +725,7 @@ export default function App() {
     nextPlayer.inventory.splice(index, 1);
     setPlayer(nextPlayer);
     addToast(`Used ${item.name}`, "info");
-    saveGameLocal(currentSlotId, { player: nextPlayer, world, log, choices, view, enemy });
+    persistGame(currentSlotId, { player: nextPlayer, world, log, choices, view, enemy });
   };
 
   const handleBuyItem = (item: Item) => {
@@ -730,7 +746,7 @@ export default function App() {
   
       setPlayer(nextPlayer);
       addToast(`Bought ${item.name}`, 'success');
-      saveGameLocal(currentSlotId, { player: nextPlayer, world, log, choices, view: 'shop', enemy });
+      persistGame(currentSlotId, { player: nextPlayer, world, log, choices, view: 'shop', enemy });
   };
   
   const handleSellItem = (item: Item, index: number) => {
@@ -747,7 +763,7 @@ export default function App() {
   
       setPlayer(nextPlayer);
       addToast(`Sold ${item.name} for ${sellValue}c`, 'info');
-      saveGameLocal(currentSlotId, { player: nextPlayer, world, log, choices, view: 'shop', enemy });
+      persistGame(currentSlotId, { player: nextPlayer, world, log, choices, view: 'shop', enemy });
   };
 
   // NEW: handleCraft function
@@ -780,7 +796,7 @@ export default function App() {
       nextLog.push({ type: 'milestone', text: `Crafted ${recipe.name}. ${skillCheckResult?.message || ''}` });
       setLog(nextLog);
       setPlayer(nextPlayer);
-      saveGameLocal(currentSlotId, { player: nextPlayer, world, log: nextLog, choices, view: 'crafting', enemy });
+      persistGame(currentSlotId, { player: nextPlayer, world, log: nextLog, choices, view: 'crafting', enemy });
   };
 
   const actionModifiers = useMemo(() => (player ? getActionModifiers(player, world) : []), [player, world]);
@@ -850,7 +866,7 @@ export default function App() {
                 case 'inventory': return <InventoryScreen player={player!} onClose={() => setView('game')} onUseItem={handleUseItem} onEquip={handleEquip} />;
                 case 'equipment': return <EquipmentScreen player={player!} onClose={() => setView('game')} onEquip={handleEquip} onUnequip={handleUnequip} />;
                 case 'quests': return <QuestScreen player={player!} onClose={() => setView('game')} />;
-                case 'menu': return <MainMenu setView={setView} onClose={() => setView('game')} onSaveGame={() => { if (currentSlotId && player) { saveGameLocal(currentSlotId, { player, world, log, choices, view: 'game', enemy }); addToast("Progress Saved", "success"); } }} onNewGame={() => setView('startScreen')} />;
+                case 'menu': return <MainMenu setView={setView} onClose={() => setView('game')} onSaveGame={() => { if (player && persistGame(currentSlotId, { player, world, log, choices, view: 'game', enemy })) addToast("Progress Saved", "success"); }} onNewGame={() => setView('startScreen')} />;
                 case 'rest': return <RestScreen player={player!} onRest={(t) => {
                     if (player) {
                         const rested = { ...player, inventory: [...player.inventory], statusEffects: [...player.statusEffects] };
@@ -865,7 +881,7 @@ export default function App() {
                             addToast('HP, Mana & Stamina fully restored', 'success');
                         }
                         setPlayer(rested);
-                        if (currentSlotId) saveGameLocal(currentSlotId, { player: rested, world, log, choices, view: 'game', enemy });
+                        persistGame(currentSlotId, { player: rested, world, log, choices, view: 'game', enemy });
                     }
                     setView('game');
                     executeTurn(t === 'short' ? "I take a short rest." : "I set up camp for a long rest.");
