@@ -228,6 +228,9 @@ function getActiveFeatEffects(player: Player): FeatEffect[] {
             case 'dwarven_fortitude':
                 effects.push({ id: featId, name: feat.name, mechanical: 'When you Dodge, spend one Hit Die to heal.' });
                 break;
+            case 'original_spell_creator':
+                effects.push({ id: featId, name: feat.name, mechanical: 'Can create original spells (describe desired effect to GM). Can teach original spells to allies and learn them from others. Created spells cost 25% less mana.' });
+                break;
             default:
                 effects.push({ id: featId, name: feat.name, mechanical: feat.desc });
                 break;
@@ -627,13 +630,30 @@ export function getEligibleFeats(race: string, className: string, background: st
             return { ...feat, eligible: true };
         }
 
-        // Stat requirements (e.g., "Dex 13+", "Str 13+")
-        const statMatch = req.match(/(str|dex|con|int|wis|cha)\s*(\d+)\+?/i);
-        if (statMatch) {
-            const stat = statMatch[1].toLowerCase() as keyof PlayerStats;
-            const minVal = parseInt(statMatch[2]);
-            if (stats[stat] < minVal) {
-                return { ...feat, eligible: false, reason: `Requires ${stat.toUpperCase()} ${minVal}+` };
+        // Stat requirements (e.g., "Dex 13+", "Str 13+", "Int 100+ or Wis 100+")
+        const statMatches = [...req.matchAll(/(str|dex|con|int|wis|cha)\s*(\d+)\+?/gi)];
+        if (statMatches.length > 0) {
+            const isOrRequirement = req.includes(' or ');
+            if (isOrRequirement) {
+                // OR: at least one stat must meet the threshold
+                const anyMet = statMatches.some(m => {
+                    const stat = m[1].toLowerCase() as keyof PlayerStats;
+                    const minVal = parseInt(m[2]);
+                    return stats[stat] >= minVal;
+                });
+                if (!anyMet) {
+                    const reqStr = statMatches.map(m => `${m[1].toUpperCase()} ${m[2]}+`).join(' or ');
+                    return { ...feat, eligible: false, reason: `Requires ${reqStr}` };
+                }
+            } else {
+                // AND: all stat requirements must be met
+                for (const m of statMatches) {
+                    const stat = m[1].toLowerCase() as keyof PlayerStats;
+                    const minVal = parseInt(m[2]);
+                    if (stats[stat] < minVal) {
+                        return { ...feat, eligible: false, reason: `Requires ${stat.toUpperCase()} ${minVal}+` };
+                    }
+                }
             }
         }
 

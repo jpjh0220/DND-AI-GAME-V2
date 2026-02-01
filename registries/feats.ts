@@ -61,5 +61,8 @@ export const FEATS_DB = [
     { id: 'infernal_constitution', name: "Infernal Constitution", desc: "+1 Constitution. You have resistance to cold and poison damage. You have advantage on saving throws against being poisoned.", req: "Tiefling" },
     { id: 'second_chance', name: "Second Chance", desc: "+1 Dexterity, Constitution, or Charisma. When a creature you can see hits you with an attack, you can use your reaction to force them to reroll. Once used, you can't use it again until you roll initiative.", req: "Halfling" },
     { id: 'bountiful_luck', name: "Bountiful Luck", desc: "When an ally you can see within 30 feet rolls a 1 on an attack, check, or save, you can use your reaction to let them reroll.", req: "Halfling" },
-    { id: 'fade_away', name: "Fade Away", desc: "+1 Dexterity or Intelligence. When you take damage, you can use a reaction to become invisible until the end of your next turn or until you attack or cast a spell.", req: "Gnome" }
+    { id: 'fade_away', name: "Fade Away", desc: "+1 Dexterity or Intelligence. When you take damage, you can use a reaction to become invisible until the end of your next turn or until you attack or cast a spell.", req: "Gnome" },
+
+    // === LEGENDARY FEATS ===
+    { id: 'original_spell_creator', name: "Original Spell Creator", desc: "Your mastery of the arcane or divine arts transcends known magic. You can create entirely new, original spells — designing their effects, naming them, and even teaching them to others. You can also learn original spells created by other spellcasters. Created spells cost 25% less mana to cast.", req: "Int 100+ or Wis 100+" }
 ];
