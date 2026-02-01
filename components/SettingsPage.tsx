@@ -51,6 +51,7 @@ export const SettingsPage: React.FC<SettingsProps> = ({ onClose, onConfigChange 
 
     const handleTest = async () => {
         if (!apiKey.trim()) { setTestResult({ ok: false, message: 'Enter an API key first.' }); return; }
+        if (providerInfo.requiresBaseUrl && !baseUrl.trim()) { setTestResult({ ok: false, message: 'Enter a Base URL first (e.g. https://openrouter.ai/api/v1).' }); return; }
         setTesting(true);
         setTestResult(null);
         try {
@@ -69,6 +70,10 @@ export const SettingsPage: React.FC<SettingsProps> = ({ onClose, onConfigChange 
 
     const handleSave = () => {
         if (!apiKey.trim()) return;
+        if (providerInfo.requiresBaseUrl && !baseUrl.trim()) {
+            setTestResult({ ok: false, message: 'Base URL is required for this provider.' });
+            return;
+        }
         const config = buildConfig();
         saveProviderConfig(config);
         setSaved(true);
