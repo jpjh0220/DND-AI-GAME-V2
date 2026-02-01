@@ -484,11 +484,7 @@ export default function App() {
           }
       }
 
-      let newImg: string | null = null;
-      if (p.scenePrompt) {
-          newImg = await generateSceneImage(p.scenePrompt, llmConfig?.providerId === 'gemini' ? llmConfig.apiKey : undefined);
-      }
-      finalLog.push({ type: 'narration' as const, text: aiData.narration, image: newImg });
+      finalLog.push({ type: 'narration' as const, text: aiData.narration, image: null });
       
       const cleanedChoices = (aiData.choices || []).map((c: Choice) => ({
         ...c,

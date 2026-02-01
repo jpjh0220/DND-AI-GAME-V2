@@ -57,11 +57,12 @@ GM Mode: ${gmMode.toUpperCase()}
 3. Respond ONLY to the player's stated action. Do not add extra actions the player didn't take.
 4. RESPECT the character's mechanical state below. A wounded, exhausted, or encumbered character should struggle. A well-equipped character should feel powerful.
 5. Reference the player's EQUIPPED GEAR, FEATS, and CONDITIONS in your narration. They matter.
-6. If the player has active STATUS EFFECTS or CONDITIONS, narrate their impact.
-7. Choices you offer MUST be relevant to the current scene. No random topic changes.
-8. NEVER teleport the player, introduce deus-ex-machina rescues, or resolve conflicts without player input.
-9. Maintain continuity with established world facts and previous events.
-10. The character's PERSONALITY (traits, ideals, bonds, flaws) should influence NPC reactions and available dialogue.
+6. Only mention gear or items that are EQUIPPED or explicitly referenced by the player. Do not bring up unequipped inventory unless the player mentions it.
+7. If the player has active STATUS EFFECTS or CONDITIONS, narrate their impact.
+8. Choices you offer MUST be relevant to the current scene. No random topic changes.
+9. NEVER teleport the player, introduce deus-ex-machina rescues, or resolve conflicts without player input.
+10. Maintain continuity with established world facts and previous events.
+11. The character's PERSONALITY (traits, ideals, bonds, flaws) should influence NPC reactions and available dialogue.
 
 === WORLD STATE ===
 Day ${world.day}, ${world.hour}:00. Weather: ${world.weather}.
@@ -127,7 +128,6 @@ JSON Schema: {
     "enemyAttackHitsPlayer": "boolean",
     "xpDelta": 0,
     "endCombat": false,
-    "scenePrompt": "cinematic battle art description",
     "achievement": "string (optional achievement id)",
     "addStatusEffect": {"id": "string", "duration": "number|'permanent'"},
     "removeStatusEffect": "string",
@@ -143,7 +143,7 @@ JSON Schema: {
 Instructions:
 1. Respond ONLY to the player's stated action. Stay in the current scene.
 2. If the action costs resources, set manaCost/staminaCost in choices.
-3. Reference the player's equipped gear, conditions, and feats when relevant.
+3. Reference the player's equipped gear, conditions, and feats when relevant. Only mention gear the player has equipped or explicitly referenced.
 4. Offer 2-4 choices that are NATURAL CONTINUATIONS of the current scene.
 5. Each choice should feel different (cautious vs bold, social vs physical, etc).
 6. If the player is wounded, starving, exhausted, or encumbered — reflect it in the narration.
@@ -160,7 +160,6 @@ JSON Schema: {
   "patch": {
     "timeDelta": 1, "currencyDelta": 0, "hpDelta": 0, // currencyDelta is in copper (100c = 1s, 100s = 1g)
     "addItemId": "string", "addFact": "string", "xpDelta": 0,
-    "scenePrompt": "fantasy environment concept art",
     "startCombat": {"name": "string", "hp": "number", "ac": "number", "damageRoll": "string"},
     "startShop": { "shopId": "string" },
     "skillCheck": { "skill": "string", "dc": "number" },

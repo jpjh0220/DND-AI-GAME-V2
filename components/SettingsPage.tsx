@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Key, Check, AlertTriangle, ExternalLink, Eye, EyeOff, Loader2, Trash2 } from 'lucide-react';
-import { PROVIDERS, loadProviderConfig, saveProviderConfig, clearProviderConfig, callLLM } from '../api/providers';
+import { PROVIDERS, loadProviderConfig, loadProviderConfigFor, saveProviderConfig, clearProviderConfig, callLLM } from '../api/providers';
 import type { ProviderConfig, ProviderId } from '../api/providers';
 
 interface SettingsProps {
@@ -32,12 +32,10 @@ export const SettingsPage: React.FC<SettingsProps> = ({ onClose, onConfigChange 
 
     useEffect(() => {
         const info = PROVIDERS.find(p => p.id === providerId)!;
-        const existing = loadProviderConfig();
-        if (existing?.providerId === providerId) {
-            setModel(existing.model);
-        } else {
-            setModel(info.defaultModel);
-        }
+        const existing = loadProviderConfigFor(providerId);
+        setApiKey(existing?.apiKey || '');
+        setBaseUrl(existing?.baseUrl || '');
+        setModel(existing?.model || info.defaultModel);
         setTestResult(null);
         setSaved(false);
     }, [providerId]);
@@ -82,7 +80,7 @@ export const SettingsPage: React.FC<SettingsProps> = ({ onClose, onConfigChange 
     };
 
     const handleClear = () => {
-        clearProviderConfig();
+        clearProviderConfig(providerId);
         setApiKey('');
         setModel(providerInfo.defaultModel);
         setBaseUrl('');

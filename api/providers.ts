@@ -38,7 +38,7 @@ export const PROVIDERS: ProviderInfo[] = [
         name: 'Google Gemini',
         description: 'Google AI Studio / Gemini API',
         defaultModel: 'gemini-3-flash-preview',
-        models: ['gemini-3-flash-preview', 'gemini-2.5-flash-preview', 'gemini-2.5-pro-preview'],
+        models: ['gemini-3-flash-preview', 'gemini-2.5-flash-preview-05-20', 'gemini-2.5-pro-preview-05-06'],
         requiresBaseUrl: false,
         docsUrl: 'https://aistudio.google.com/apikey',
     },
@@ -75,24 +75,73 @@ export const PROVIDERS: ProviderInfo[] = [
 
 const STORAGE_KEY = 'mythic_realms_llm_config';
 
-export const saveProviderConfig = (config: ProviderConfig): void => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+type ProviderConfigMap = Partial<Record<ProviderId, ProviderConfig>>;
+
+interface ProviderState {
+    selectedProviderId?: ProviderId;
+    configs: ProviderConfigMap;
+}
+
+const normalizeProviderState = (raw: any): ProviderState => {
+    if (raw && raw.providerId && raw.apiKey) {
+        const legacyConfig = raw as ProviderConfig;
+        return {
+            selectedProviderId: legacyConfig.providerId,
+            configs: { [legacyConfig.providerId]: legacyConfig },
+        };
+    }
+    if (raw && raw.configs) {
+        return {
+            selectedProviderId: raw.selectedProviderId,
+            configs: raw.configs || {},
+        };
+    }
+    return { configs: {} };
 };
 
-export const loadProviderConfig = (): ProviderConfig | null => {
+const loadProviderState = (): ProviderState => {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (parsed && parsed.providerId && parsed.apiKey) return parsed as ProviderConfig;
-        return null;
+        if (!raw) return { configs: {} };
+        return normalizeProviderState(JSON.parse(raw));
     } catch {
-        return null;
+        return { configs: {} };
     }
 };
 
-export const clearProviderConfig = (): void => {
-    localStorage.removeItem(STORAGE_KEY);
+const saveProviderState = (state: ProviderState): void => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+};
+
+export const saveProviderConfig = (config: ProviderConfig): void => {
+    const state = loadProviderState();
+    state.configs[config.providerId] = config;
+    state.selectedProviderId = config.providerId;
+    saveProviderState(state);
+};
+
+export const loadProviderConfig = (): ProviderConfig | null => {
+    const state = loadProviderState();
+    if (!state.selectedProviderId) return null;
+    return state.configs[state.selectedProviderId] || null;
+};
+
+export const loadProviderConfigFor = (providerId: ProviderId): ProviderConfig | null => {
+    const state = loadProviderState();
+    return state.configs[providerId] || null;
+};
+
+export const clearProviderConfig = (providerId?: ProviderId): void => {
+    if (!providerId) {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+    }
+    const state = loadProviderState();
+    delete state.configs[providerId];
+    if (state.selectedProviderId === providerId) {
+        state.selectedProviderId = undefined;
+    }
+    saveProviderState(state);
 };
 
 // --- Unified LLM Call ---
