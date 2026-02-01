@@ -8,7 +8,7 @@ import { RefreshCw, Heart, Zap, Wind, Coins, Map, User, Backpack, Star, Menu, Sh
 
 import { Player, World, LogEntry, Choice, Item, Enemy, SkillCheckDetails, NPC, Achievement, PlayerStats, Recipe, ShopData, Encounter, StatusEffect } from './types';
 import { getFirebaseConfig } from './firebase/index';
-import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost, getProficiencyBonus } from './systems/index';
+import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost, getProficiencyBonus, resolvePlayerAttack, resolveEnemyDamage, computeGameSnapshot } from './systems/index';
 import { callGeminiAPI, buildPrompt, generateSceneImage, callLLM, loadProviderConfig } from './api/index';
 import type { ProviderConfig } from './api/index';
 import { saveGame as saveGameCloud } from './persistence/cloud';
@@ -357,25 +357,12 @@ export default function App() {
         setEnemy(currentEnemy); setView('combat');
       } else if (currentEnemy) {
         if (p.playerAttackHitsEnemy) {
-          const weapon = nextPlayer.equipment.mainHand;
-          let baseDmg = 0;
-          if (weapon?.damageRoll) baseDmg = parseDamageRoll(weapon.damageRoll);
-          else if (weapon?.power) baseDmg = weapon.power;
-          else baseDmg = parseDamageRoll("1d4");
-          
-          const effectDmg = weapon?.effect ? Object.values(weapon.effect).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0) : 0;
-          let totalDmg = baseDmg + effectDmg + getMod(nextPlayer.stats.str);
-          
-          // Apply damage modifiers from status effects
-          nextPlayer.statusEffects.forEach(se => {
-              if (se.effect.damageModifier) totalDmg += se.effect.damageModifier;
-          });
-
-          currentEnemy.hp = Math.max(0, currentEnemy.hp - totalDmg);
+          const { damage, details } = resolvePlayerAttack(nextPlayer, currentEnemy);
+          currentEnemy.hp = Math.max(0, currentEnemy.hp - damage);
         }
         if (p.enemyAttackHitsPlayer) {
-          const dmg = parseDamageRoll(currentEnemy.damageRoll);
-          nextPlayer.hpCurrent = Math.max(0, nextPlayer.hpCurrent - dmg);
+          const { damage, details } = resolveEnemyDamage(nextPlayer, currentEnemy);
+          nextPlayer.hpCurrent = Math.max(0, nextPlayer.hpCurrent - damage);
         }
         if (p.endCombat || currentEnemy.hp <= 0) {
           if (currentEnemy.hp <= 0) finalLog.push({ type: 'milestone', text: `${currentEnemy.name} slain.` });
