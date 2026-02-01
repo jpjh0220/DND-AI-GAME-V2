@@ -273,7 +273,7 @@ export default function App() {
       const retrievedMemories = memoryStoreRef.current
           ? memoryStoreRef.current.retrieve(actionText, 5)
           : [];
-      const prompt = buildPrompt(nextPlayer, nextWorld, actionText, enemy, rollOverride, worldEventTriggered, retrievedMemories);
+      const prompt = buildPrompt(nextPlayer, nextWorld, actionText, enemy, rollOverride, worldEventTriggered, retrievedMemories, choice?.intent);
       const aiData = llmConfig
           ? await callLLM(prompt, llmConfig)
           : await callGeminiAPI(prompt, "gemini-3-flash-preview");
@@ -345,6 +345,26 @@ export default function App() {
           const isDamage = m.includes('-');
           addToast(m, isDamage ? 'danger' : 'info');
         });
+      }
+
+      // Handle addFact with location change validation
+      if (p.addFact && typeof p.addFact === 'string') {
+        const fact = p.addFact.trim();
+        if (fact.startsWith('Arrived at ')) {
+          // Only allow location changes on travel actions
+          if (choice?.intent === 'travel') {
+            nextWorld.facts.push(fact);
+            const newLoc = fact.substring('Arrived at '.length);
+            addToast(`Traveled to ${newLoc}`, 'info');
+            finalLog.push({ type: 'milestone' as const, text: `TRAVELED: ${newLoc}` });
+          } else {
+            // Block AI from changing location on non-travel actions
+            console.warn(`Blocked location change to "${fact}" — player did not choose travel.`);
+          }
+        } else {
+          // Non-location facts are always allowed
+          nextWorld.facts.push(fact);
+        }
       }
 
       if (!enemy) {

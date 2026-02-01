@@ -18,7 +18,8 @@ export const buildPrompt = (
     enemy?: Enemy | null,
     skillCheckResult?: { skill: string; success: boolean },
     isWorldEventTriggered: boolean = false,
-    retrievedMemories: RetrievedMemory[] = []
+    retrievedMemories: RetrievedMemory[] = [],
+    choiceIntent?: string
 ): string => {
     // --- Compute full mechanical state via engine ---
     const snapshot: GameSnapshot = computeGameSnapshot(player);
@@ -39,8 +40,16 @@ export const buildPrompt = (
 
     // World geography (compact: only current location + connections)
     const currentFacts = (world?.facts || []);
-    const currentLocName = currentFacts[0]?.replace('Arrived at ', '') || 'Unknown';
-    const currentLoc = LOCATIONS_DB.find(l => currentFacts.some(f => f.includes(l.name)));
+    // Derive current location from the most recent "Arrived at" fact
+    let currentLocName = 'Unknown';
+    for (let i = currentFacts.length - 1; i >= 0; i--) {
+        if (currentFacts[i].startsWith('Arrived at ')) {
+            currentLocName = currentFacts[i].substring('Arrived at '.length);
+            break;
+        }
+    }
+    const currentLoc = LOCATIONS_DB.find(l => l.name === currentLocName) || LOCATIONS_DB.find(l => currentFacts.some(f => f.includes(l.name)));
+    const isTravelAction = choiceIntent === 'travel';
     const nearbyLocs = currentLoc?.connections
         ?.map(id => LOCATIONS_DB.find(l => l.id === id))
         .filter(Boolean)
@@ -67,11 +76,12 @@ GM Mode: ${gmMode.toUpperCase()}
 
 === WORLD STATE ===
 Day ${world.day}, ${world.hour}:00. Weather: ${world.weather}.
-Location Facts: ${currentFacts.join(", ")}.
-${currentLoc ? `Current Location: ${currentLoc.name} (${currentLoc.type}, Danger Level: ${currentLoc.dangerLevel}). ${currentLoc.description}` : ''}
-${nearbyLocs.length > 0 ? `Nearby: ${nearbyLocs.join(', ')}` : ''}
-${currentLoc?.npcs ? `NPCs here: ${currentLoc.npcs.map(id => NPCS_DB.find(n => n.id === id)?.name || id).join(', ')}` : ''}
-${currentLoc?.shopIds ? `Shops here: ${currentLoc.shopIds.map(id => SHOPS_DB.find(s => s.id === id)?.name || id).join(', ')}` : ''}
+CURRENT LOCATION: ${currentLocName}${currentLoc ? ` (${currentLoc.type}, Danger Level: ${currentLoc.dangerLevel}). ${currentLoc.description}` : ''}
+${!isTravelAction ? `LOCATION LOCKED: The player is at ${currentLocName}. Do NOT move, teleport, or transition the player to any other location. The entire scene MUST take place at ${currentLocName}. Do NOT set addFact to "Arrived at ..." unless the player chose a travel action.` : `TRAVEL ACTION: The player is traveling. You may move them to a connected location using addFact: "Arrived at <destination>". Only use destinations from Nearby locations.`}
+${nearbyLocs.length > 0 ? `Nearby locations (valid travel destinations): ${nearbyLocs.join(', ')}` : ''}
+${currentLoc?.npcs ? `NPCs at this location: ${currentLoc.npcs.map(id => NPCS_DB.find(n => n.id === id)?.name || id).join(', ')}` : 'No NPCs at this location.'}
+${currentLoc?.shopIds ? `Shops at this location: ${currentLoc.shopIds.map(id => SHOPS_DB.find(s => s.id === id)?.name || id).join(', ')}` : ''}
+Previous events: ${currentFacts.slice(-5).join(", ")}
 
 ${characterState}
 ${memoryContext}
@@ -149,7 +159,7 @@ Instructions:
 5. Each choice should feel different (cautious vs bold, social vs physical, etc).
 6. If the player is wounded, starving, exhausted, or encumbered — reflect it in the narration.
 
-Available NPC IDs (only use these): ${NPCS_DB.map(n => n.id).join(', ')}
+Available NPC IDs at this location (ONLY use these): ${currentLoc?.npcs?.join(', ') || 'none — do NOT introduce NPCs'}
 Available Shop IDs (only use these): ${SHOPS_DB.map(s => s.id).join(', ')}
 Available Encounter IDs: ${ENCOUNTERS_DB.map(e => e.id).join(', ')}
 Available Achievement IDs: ${ACHIEVEMENTS_DB.map(a => a.id).join(', ')}
