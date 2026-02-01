@@ -322,6 +322,26 @@ export default function App() {
         const item = ITEMS_DB.find(i => i.id === p.addItemId);
         if (item) nextPlayer.inventory.push({ ...item });
       }
+      // Handle spell learning / original spell creation
+      if (p.addSpell) {
+        const spellData = p.addSpell;
+        // Check if spell already known
+        if (!nextPlayer.spells.some(s => s.id === spellData.id)) {
+          const newSpell = {
+            id: spellData.id || `custom_${Date.now()}`,
+            name: spellData.name,
+            cost: spellData.cost || 5,
+            damage: spellData.damage || 0,
+            heal: spellData.heal || 0,
+            school: spellData.school || 'evocation',
+            target: spellData.target || 'enemy' as const,
+            description: spellData.description || '',
+          };
+          nextPlayer.spells.push(newSpell);
+          addToast(`New spell learned: ${newSpell.name}!`, 'success');
+          finalLog.push({ type: 'milestone', text: `SPELL LEARNED: ${newSpell.name} — ${newSpell.description}` });
+        }
+      }
       if (p.xpDelta > 0) {
           nextPlayer.xp += p.xpDelta;
           addToast(`+${p.xpDelta} XP`, 'info');

@@ -3,7 +3,7 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { Player, World, Enemy, Item } from '../types';
 import { calculateEncumbrance, calculateMaxCarry } from '../systems/calculations';
-import { ITEMS_DB, LOCATIONS_DB, ENEMIES_DB, ACHIEVEMENTS_DB, NPCS_DB, SHOPS_DB, ENCOUNTERS_DB } from '../registries/index';
+import { ITEMS_DB, LOCATIONS_DB, ENEMIES_DB, ACHIEVEMENTS_DB, NPCS_DB, SHOPS_DB, ENCOUNTERS_DB, SPELLS_DB } from '../registries/index';
 import { RetrievedMemory, formatRetrievedMemories } from '../systems/memory';
 import { GMMode, determineGMMode, getSystemPrompt } from '../systems/prompts';
 import { computeGameSnapshot, formatSnapshotForPrompt, GameSnapshot } from '../systems/engine';
@@ -126,7 +126,8 @@ JSON Schema: {
     "scenePrompt": "cinematic battle art description",
     "achievement": "string (optional achievement id)",
     "addStatusEffect": {"id": "string", "duration": "number|'permanent'"},
-    "removeStatusEffect": "string"
+    "removeStatusEffect": "string",
+    "addSpell": {"id": "unique_snake_case_id", "name": "Spell Name", "cost": 5, "damage": 0, "heal": 0, "school": "evocation|necromancy|abjuration|etc", "target": "enemy|ally|self", "description": "what the spell does"}
   }
 }`;
     } else {
@@ -144,6 +145,7 @@ Available NPC IDs (only use these): ${NPCS_DB.map(n => n.id).join(', ')}
 Available Shop IDs (only use these): ${SHOPS_DB.map(s => s.id).join(', ')}
 Available Encounter IDs: ${ENCOUNTERS_DB.map(e => e.id).join(', ')}
 Available Achievement IDs: ${ACHIEVEMENTS_DB.map(a => a.id).join(', ')}
+${player.feats.includes('original_spell_creator') ? `\nSPELL CREATION: This player has the Original Spell Creator feat. When they attempt to create, learn, or teach a spell, use "addSpell" in the patch to add it to their spellbook. Create a unique id, name, cost (mana), damage/heal values, school, target, and description. Original spells should be creative and unique but balanced for the player's level (${player.level}).${player.stats.int >= 100 || player.stats.wis >= 100 ? ' FULL POWER UNLOCKED: Player has 100+ INT/WIS — they can create legendary-tier spells.' : ''}` : ''}
 
 JSON Schema: {
   "narration": "string",
@@ -160,7 +162,8 @@ JSON Schema: {
     "eventTitle": "string (optional)",
     "addStatusEffect": {"id": "string", "duration": "number|'permanent'"},
     "removeStatusEffect": "string",
-    "startEncounter": {"id": "string"}
+    "startEncounter": {"id": "string"},
+    "addSpell": {"id": "unique_snake_case_id", "name": "Spell Name", "cost": 5, "damage": 0, "heal": 0, "school": "evocation|necromancy|abjuration|etc", "target": "enemy|ally|self", "description": "what the spell does"}
   }
 }`;
     }
