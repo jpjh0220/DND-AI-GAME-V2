@@ -12,7 +12,7 @@ export const FeatScreen: React.FC<ScreenProps> = ({ player, onClose }) => (
     <div className="absolute inset-0 bg-slate-950 flex flex-col z-20 animate-slide-in-from-bottom">
         <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
             <h2 className="font-bold text-white">Feats</h2>
-            <button onClick={() => { console.log('[DEBUG] Closing screen: Feats'); onClose(); }}><X size={20}/></button>
+            <button onClick={onClose}><X size={20}/></button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {FEATS_DB.map((feat, i) => (

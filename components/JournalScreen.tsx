@@ -6,7 +6,7 @@ export const JournalScreen: React.FC<{log: LogEntry[], world: World, onClose: ()
     <div className="absolute inset-0 bg-slate-950 flex flex-col z-20 animate-slide-in-from-bottom">
         <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
             <h2 className="font-bold text-white">Journal</h2>
-            <button onClick={() => { console.log('[DEBUG] Closing screen: Journal'); onClose(); }}><X size={20}/></button>
+            <button onClick={onClose}><X size={20}/></button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
             <div className="bg-indigo-900/20 p-4 rounded-xl border border-indigo-500/30">

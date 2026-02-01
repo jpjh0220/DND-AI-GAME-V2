@@ -159,7 +159,7 @@ JSON Schema: {
   "narration": "string",
   "choices": [{ "id": "str", "label": "str", "intent": "travel|combat|social|buy|rest|system|craft", "manaCost": 0, "staminaCost": 0 }],
   "patch": {
-    "timeDelta": 1, "currencyDelta": 0, "hpDelta": 0,
+    "timeDelta": 1, "currencyDelta": 0, "hpDelta": 0, // currencyDelta is in copper (100c = 1s, 100s = 1g)
     "addItemId": "string", "addFact": "string", "xpDelta": 0,
     "startCombat": {"name": "string", "hp": "number", "ac": "number", "damageRoll": "string"},
     "startShop": { "shopId": "string" },

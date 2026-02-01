@@ -33,11 +33,11 @@ export const SettingsPage: React.FC<SettingsProps> = ({ onClose, onConfigChange 
     useEffect(() => {
         const info = PROVIDERS.find(p => p.id === providerId)!;
         // Load saved credentials for this specific provider
-        const saved = loadProviderCredentials(providerId);
-        if (saved) {
-            setApiKey(saved.apiKey);
-            setModel(saved.model || info.defaultModel);
-            setBaseUrl(saved.baseUrl || '');
+        const existing = loadProviderCredentials(providerId);
+        if (existing) {
+            setApiKey(existing.apiKey || '');
+            setModel(existing.model || info.defaultModel);
+            setBaseUrl(existing.baseUrl || '');
         } else {
             setApiKey('');
             setModel(info.defaultModel);
@@ -87,7 +87,7 @@ export const SettingsPage: React.FC<SettingsProps> = ({ onClose, onConfigChange 
     };
 
     const handleClear = () => {
-        clearProviderConfig();
+        clearProviderConfig(providerId);
         setApiKey('');
         setModel(providerInfo.defaultModel);
         setBaseUrl('');

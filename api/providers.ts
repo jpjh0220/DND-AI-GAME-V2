@@ -72,85 +72,80 @@ export const PROVIDERS: ProviderInfo[] = [
 ];
 
 // --- Storage ---
-// Active config key stores { providerId, model } — the currently selected provider.
-// Per-provider keys store { apiKey, model, baseUrl } so switching providers doesn't lose credentials.
+// Uses a single localStorage key with a ProviderState object containing all provider configs.
+// Each provider's credentials are stored separately within the configs map.
 
-const ACTIVE_CONFIG_KEY = 'mythic_realms_active_provider';
-const PROVIDER_KEY_PREFIX = 'mythic_realms_provider_';
-// Legacy key for migration from single-config storage
-const LEGACY_KEY = 'mythic_realms_llm_config';
+const STORAGE_KEY = 'mythic_realms_llm_config';
 
-function getProviderStorageKey(providerId: ProviderId): string {
-    return `${PROVIDER_KEY_PREFIX}${providerId}`;
+type ProviderConfigMap = Partial<Record<ProviderId, ProviderConfig>>;
+
+interface ProviderState {
+    selectedProviderId?: ProviderId;
+    configs: ProviderConfigMap;
 }
 
+const normalizeProviderState = (raw: any): ProviderState => {
+    // Migrate from legacy single-config format
+    if (raw && raw.providerId && raw.apiKey) {
+        const legacyConfig = raw as ProviderConfig;
+        return {
+            selectedProviderId: legacyConfig.providerId,
+            configs: { [legacyConfig.providerId]: legacyConfig },
+        };
+    }
+    if (raw && raw.configs) {
+        return {
+            selectedProviderId: raw.selectedProviderId,
+            configs: raw.configs || {},
+        };
+    }
+    return { configs: {} };
+};
+
+const loadProviderState = (): ProviderState => {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { configs: {} };
+        return normalizeProviderState(JSON.parse(raw));
+    } catch {
+        return { configs: {} };
+    }
+};
+
+const saveProviderState = (state: ProviderState): void => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+};
+
 export const saveProviderConfig = (config: ProviderConfig): void => {
-    // Save per-provider credentials
-    const providerData: any = { apiKey: config.apiKey, model: config.model };
-    if (config.baseUrl) providerData.baseUrl = config.baseUrl;
-    localStorage.setItem(getProviderStorageKey(config.providerId), JSON.stringify(providerData));
-    // Save active provider selection
-    localStorage.setItem(ACTIVE_CONFIG_KEY, JSON.stringify({ providerId: config.providerId, model: config.model }));
-    // Clean up legacy key
-    localStorage.removeItem(LEGACY_KEY);
+    const state = loadProviderState();
+    state.configs[config.providerId] = config;
+    state.selectedProviderId = config.providerId;
+    saveProviderState(state);
 };
 
 export const loadProviderConfig = (): ProviderConfig | null => {
-    try {
-        // Try new per-provider storage first
-        const activeRaw = localStorage.getItem(ACTIVE_CONFIG_KEY);
-        if (activeRaw) {
-            const active = JSON.parse(activeRaw);
-            const providerRaw = localStorage.getItem(getProviderStorageKey(active.providerId));
-            if (providerRaw) {
-                const providerData = JSON.parse(providerRaw);
-                return {
-                    providerId: active.providerId,
-                    apiKey: providerData.apiKey,
-                    model: providerData.model || active.model,
-                    ...(providerData.baseUrl ? { baseUrl: providerData.baseUrl } : {}),
-                };
-            }
-        }
-        // Fall back to legacy single-config storage and migrate
-        const legacyRaw = localStorage.getItem(LEGACY_KEY);
-        if (legacyRaw) {
-            const parsed = JSON.parse(legacyRaw);
-            if (parsed?.providerId && parsed?.apiKey) {
-                // Migrate to new format
-                saveProviderConfig(parsed as ProviderConfig);
-                return parsed as ProviderConfig;
-            }
-        }
-        return null;
-    } catch {
-        return null;
-    }
+    const state = loadProviderState();
+    if (!state.selectedProviderId) return null;
+    return state.configs[state.selectedProviderId] || null;
 };
 
 /** Load saved credentials for a specific provider (without changing active provider) */
-export const loadProviderCredentials = (providerId: ProviderId): { apiKey: string; model: string; baseUrl?: string } | null => {
-    try {
-        const raw = localStorage.getItem(getProviderStorageKey(providerId));
-        if (!raw) return null;
-        const data = JSON.parse(raw);
-        if (data?.apiKey) return data;
-        return null;
-    } catch {
-        return null;
-    }
+export const loadProviderCredentials = (providerId: ProviderId): ProviderConfig | null => {
+    const state = loadProviderState();
+    return state.configs[providerId] || null;
 };
 
-export const clearProviderConfig = (): void => {
-    const activeRaw = localStorage.getItem(ACTIVE_CONFIG_KEY);
-    if (activeRaw) {
-        try {
-            const active = JSON.parse(activeRaw);
-            localStorage.removeItem(getProviderStorageKey(active.providerId));
-        } catch { /* ignore */ }
+export const clearProviderConfig = (providerId?: ProviderId): void => {
+    if (!providerId) {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
     }
-    localStorage.removeItem(ACTIVE_CONFIG_KEY);
-    localStorage.removeItem(LEGACY_KEY);
+    const state = loadProviderState();
+    delete state.configs[providerId];
+    if (state.selectedProviderId === providerId) {
+        state.selectedProviderId = undefined;
+    }
+    saveProviderState(state);
 };
 
 // --- Unified LLM Call ---
