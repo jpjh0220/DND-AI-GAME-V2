@@ -18,7 +18,7 @@ interface FloatingText {
 interface CombatScreenProps { 
   player: Player; 
   enemy: Enemy; 
-  onAction: (actionText: string) => void; 
+  onAction: (actionText: string, choice?: any) => void;
   log: LogEntry[]; 
   scrollRef: React.RefObject<HTMLDivElement>; 
   processing: boolean; 

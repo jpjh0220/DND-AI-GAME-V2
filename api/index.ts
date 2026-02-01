@@ -131,14 +131,18 @@ Instructions:
 3. Return playerAttackHitsEnemy and enemyAttackHitsPlayer booleans.
 4. If enemy HP would drop to 0, set endCombat: true and describe the killing blow.
 5. Account for the player's feats and conditions in the narration.
+6. When endCombat is true, ALSO return "choices" — 2-4 choices for what the player does AFTER the fight (e.g. loot the body, tend wounds, continue exploring, rest).
 
 JSON Schema: {
   "narration": "string",
+  "choices": [{ "id": "str", "label": "str", "intent": "travel|combat|social|buy|rest|system|craft", "manaCost": 0, "staminaCost": 0 }],
   "patch": {
     "playerAttackHitsEnemy": "boolean",
     "enemyAttackHitsPlayer": "boolean",
     "xpDelta": 0,
     "endCombat": false,
+    "currencyDelta": 0,
+    "addItemId": "string (optional loot drop item id)",
     "achievement": "string (optional achievement id)",
     "addStatusEffect": {"id": "string", "duration": "number|'permanent'"},
     "removeStatusEffect": "string",
