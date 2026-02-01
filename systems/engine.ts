@@ -228,9 +228,14 @@ function getActiveFeatEffects(player: Player): FeatEffect[] {
             case 'dwarven_fortitude':
                 effects.push({ id: featId, name: feat.name, mechanical: 'When you Dodge, spend one Hit Die to heal.' });
                 break;
-            case 'original_spell_creator':
-                effects.push({ id: featId, name: feat.name, mechanical: 'Can create original spells (describe desired effect to GM). Can teach original spells to allies and learn them from others. Created spells cost 25% less mana.' });
+            case 'original_spell_creator': {
+                const hasFullPower = player.stats.int >= 100 || player.stats.wis >= 100;
+                const desc = hasFullPower
+                    ? 'FULL POWER UNLOCKED: Can create, teach, and learn original spells with no restrictions. Created spells cost 25% less mana. Can invent legendary-tier spells.'
+                    : 'Can attempt to create original spells (describe desired effect to GM). Created spells cost 25% less mana. Reach 100+ INT or WIS to unlock full spell creation mastery.';
+                effects.push({ id: featId, name: feat.name, mechanical: desc });
                 break;
+            }
             default:
                 effects.push({ id: featId, name: feat.name, mechanical: feat.desc });
                 break;

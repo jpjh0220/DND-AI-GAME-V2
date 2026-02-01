@@ -64,5 +64,5 @@ export const FEATS_DB = [
     { id: 'fade_away', name: "Fade Away", desc: "+1 Dexterity or Intelligence. When you take damage, you can use a reaction to become invisible until the end of your next turn or until you attack or cast a spell.", req: "Gnome" },
 
     // === LEGENDARY FEATS ===
-    { id: 'original_spell_creator', name: "Original Spell Creator", desc: "Your mastery of the arcane or divine arts transcends known magic. You can create entirely new, original spells — designing their effects, naming them, and even teaching them to others. You can also learn original spells created by other spellcasters. Created spells cost 25% less mana to cast.", req: "Int 100+ or Wis 100+" }
+    { id: 'original_spell_creator', name: "Original Spell Creator", desc: "Your mastery of the arcane or divine arts transcends known magic. You can create entirely new, original spells — designing their effects, naming them, and even teaching them to others. You can also learn original spells created by other spellcasters. Created spells cost 25% less mana to cast. Full power unlocks at 100+ INT or WIS.", req: "Ability to cast at least one spell" }
 ];
