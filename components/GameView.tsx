@@ -153,8 +153,7 @@ export const GameView: React.FC<GameViewProps> = ({ log, choices, processing, in
         <div className="flex gap-2 mb-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {choices.map(c => {
             const config = getIntentConfig(c.intent);
-            const manaCost = c.manaCost || 0;
-            const staminaCost = c.staminaCost || 0;
+            const { mana: manaCost, stamina: staminaCost } = getChoiceCost(c);
             const missingMana = Math.max(0, manaCost - playerResources.mp);
             const missingStamina = Math.max(0, staminaCost - playerResources.st);
             const canAfford = missingMana === 0 && missingStamina === 0;

@@ -26,19 +26,43 @@ export interface SaveSlotSummary {
 
 export const saveGameLocal = (slotId: string, gameState: GameState): void => {
   const primaryKey = `${SAVE_KEY_PREFIX}${slotId}`;
+  // Truncate the log to prevent save file from growing too large
+  const gameStateToSave = {
+    ...gameState,
+    log: gameState.log.slice(-MAX_LOG_ENTRIES),
+  };
+
+  // Strip non-serializable values and circular references
+  let newStateString: string;
   try {
-    // Truncate the log to prevent save file from growing too large
-    const gameStateToSave = {
-      ...gameState,
-      log: gameState.log.slice(-MAX_LOG_ENTRIES),
-    };
-    const newStateString = JSON.stringify(gameStateToSave);
+    newStateString = JSON.stringify(gameStateToSave);
+  } catch (serializeError) {
+    // Fallback: try with a replacer that skips problematic values
+    console.warn('Save serialization issue, retrying with safe replacer:', serializeError);
+    const seen = new WeakSet();
+    newStateString = JSON.stringify(gameStateToSave, (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) return undefined; // circular ref
+        seen.add(value);
+      }
+      if (typeof value === 'function') return undefined;
+      return value;
+    });
+  }
+
+  try {
     localStorage.setItem(primaryKey, newStateString);
-    console.log(`Game saved to localStorage slot: ${slotId} (log truncated)`);
-  } catch (error) {
-    console.error(`Failed to save game to localStorage slot ${slotId}. The browser's storage quota may be full.`, error);
-    // Re-throw the error so the UI could potentially be notified.
-    throw error;
+  } catch (storageError) {
+    // Storage quota exceeded — try clearing old data and retry once
+    console.warn(`Storage quota issue for slot ${slotId}, attempting cleanup...`);
+    try {
+      // Remove the existing save first to free space, then re-save
+      localStorage.removeItem(primaryKey);
+      localStorage.setItem(primaryKey, newStateString);
+    } catch (retryError) {
+      console.error(`Failed to save game to localStorage slot ${slotId}.`, retryError);
+      throw retryError;
+    }
   }
 };
 

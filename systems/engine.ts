@@ -122,6 +122,9 @@ export interface GameSnapshot {
     knownNPCNames: string[];
     factionStandings: { faction: string; reputation: number }[];
 
+    // Spells
+    spells: { name: string; school: string; cost: number; damage: number; heal: number; target: string; description: string }[];
+
     // Personality (for GM consistency)
     personality: Player['personality'];
     concept: string;
@@ -542,6 +545,15 @@ export function computeGameSnapshot(player: Player): GameSnapshot {
         activeQuests: player.quests?.filter(q => q.status === 'active').map(q => q.title) || [],
         knownNPCNames: player.knownNPCs?.map(n => n.name) || [],
         factionStandings: Object.entries(player.factions || {}).map(([f, r]) => ({ faction: f, reputation: r })),
+        spells: (player.spells || []).map(s => ({
+            name: s.name,
+            school: s.school || 'evocation',
+            cost: s.cost || 0,
+            damage: s.damage || 0,
+            heal: s.heal || 0,
+            target: s.target || 'enemy',
+            description: s.description || '',
+        })),
         personality: player.personality,
         concept: player.concept,
     };
@@ -772,6 +784,19 @@ export function formatSnapshotForPrompt(snap: GameSnapshot): string {
         for (const e of snap.conditions.activeEffects) {
             lines.push(`- ${e.name} (${e.duration}): ${e.mechanical}`);
         }
+        lines.push('');
+    }
+
+    if (snap.spells && snap.spells.length > 0) {
+        lines.push(`=== KNOWN SPELLS ===`);
+        lines.push(`The player knows ONLY these spells. Do NOT offer choices to cast spells not in this list.`);
+        for (const sp of snap.spells) {
+            lines.push(`- ${sp.name} (${sp.school}, ${sp.cost} MP, ${sp.target}): ${sp.description || `${sp.damage ? `${sp.damage} dmg` : ''}${sp.heal ? `${sp.heal} heal` : ''}`}`);
+        }
+        lines.push('');
+    } else {
+        lines.push(`=== SPELLS: NONE ===`);
+        lines.push(`This character knows NO spells. Do NOT offer choices involving spellcasting.`);
         lines.push('');
     }
 
