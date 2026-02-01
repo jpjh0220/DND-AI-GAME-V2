@@ -73,6 +73,10 @@ ${currentLoc?.shopIds ? `Shops here: ${currentLoc.shopIds.map(id => SHOPS_DB.fin
 
 ${characterState}
 ${memoryContext}
+${player.quests.length > 0 ? `=== ACTIVE QUESTS ===
+${player.quests.filter(q => q.status === 'active').map(q => `- ${q.title}: ${q.description}`).join('\n')}
+${player.quests.filter(q => q.status === 'completed').length > 0 ? `Completed: ${player.quests.filter(q => q.status === 'completed').map(q => q.title).join(', ')}` : ''}
+QUEST RULES: When the player completes a quest objective, use "completeQuest" in the patch. When an NPC gives the player a task, use "addQuest". When partial progress is made, use "updateQuest" to update the description. Do NOT re-add quests that already exist.` : 'The player has NO active quests. When NPCs interact with the player, consider offering quests via "addQuest" in the patch when it makes narrative sense.'}
 
 Player Action: "${actionText}"
 `;
@@ -127,7 +131,10 @@ JSON Schema: {
     "achievement": "string (optional achievement id)",
     "addStatusEffect": {"id": "string", "duration": "number|'permanent'"},
     "removeStatusEffect": "string",
-    "addSpell": {"id": "unique_snake_case_id", "name": "Spell Name", "cost": 5, "damage": 0, "heal": 0, "school": "evocation|necromancy|abjuration|etc", "target": "enemy|ally|self", "description": "what the spell does"}
+    "addSpell": {"id": "unique_snake_case_id", "name": "Spell Name", "cost": 5, "damage": 0, "heal": 0, "school": "evocation|necromancy|abjuration|etc", "target": "enemy|ally|self", "description": "what the spell does"},
+    "addQuest": {"title": "Quest Title", "description": "What needs to be done"},
+    "completeQuest": "Quest Title (exact match)",
+    "updateQuest": {"title": "Quest Title (exact match)", "description": "Updated description with progress"}
   }
 }`;
     } else {
@@ -163,7 +170,10 @@ JSON Schema: {
     "addStatusEffect": {"id": "string", "duration": "number|'permanent'"},
     "removeStatusEffect": "string",
     "startEncounter": {"id": "string"},
-    "addSpell": {"id": "unique_snake_case_id", "name": "Spell Name", "cost": 5, "damage": 0, "heal": 0, "school": "evocation|necromancy|abjuration|etc", "target": "enemy|ally|self", "description": "what the spell does"}
+    "addSpell": {"id": "unique_snake_case_id", "name": "Spell Name", "cost": 5, "damage": 0, "heal": 0, "school": "evocation|necromancy|abjuration|etc", "target": "enemy|ally|self", "description": "what the spell does"},
+    "addQuest": {"title": "Quest Title", "description": "What the player needs to do"},
+    "completeQuest": "Quest Title (exact match)",
+    "updateQuest": {"title": "Quest Title (exact match)", "description": "Updated description with progress"}
   }
 }`;
     }

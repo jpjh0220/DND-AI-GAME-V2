@@ -4,11 +4,11 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken, Auth, User as FirebaseUser } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
-import { RefreshCw, Heart, Zap, Wind, Coins, Map, User, Backpack, Star, Menu, Shield, MapPin, Anchor, CloudRain, CloudLightning, Globe } from 'lucide-react';
+import { RefreshCw, Heart, Zap, Wind, Coins, Map, User, Backpack, Star, Menu, Shield, MapPin, Anchor, CloudRain, CloudLightning, Globe, Save } from 'lucide-react';
 
 import { Player, World, LogEntry, Choice, Item, Enemy, SkillCheckDetails, NPC, Achievement, PlayerStats, Recipe, ShopData, Encounter, StatusEffect } from './types';
 import { getFirebaseConfig } from './firebase/index';
-import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost, getProficiencyBonus, resolvePlayerAttack, resolveEnemyDamage, computeGameSnapshot } from './systems/index';
+import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost, getProficiencyBonus, resolvePlayerAttack, resolveEnemyDamage, computeGameSnapshot, tickStatusEffects } from './systems/index';
 import { callGeminiAPI, buildPrompt, generateSceneImage, callLLM, loadProviderConfig } from './api/index';
 import type { ProviderConfig } from './api/index';
 import { saveGame as saveGameCloud } from './persistence/cloud';
@@ -42,6 +42,7 @@ export default function App() {
   const [input, setInput] = useState<string>("");
   const memoryStoreRef = useRef<MemoryStore | null>(null);
   const [llmConfig, setLlmConfig] = useState<ProviderConfig | null>(() => loadProviderConfig());
+  const [showSaveIndicator, setShowSaveIndicator] = useState(false);
 
 
   useEffect(() => {
@@ -305,12 +306,22 @@ export default function App() {
           }
       }
 
+      // Tick status effects each turn (apply per-turn hp/mp/st, count down durations)
+      if (nextPlayer.statusEffects.length > 0) {
+        const statusTick = tickStatusEffects(nextPlayer);
+        nextPlayer = statusTick.player;
+        statusTick.messages.forEach(m => {
+          const isDamage = m.includes('-');
+          addToast(m, isDamage ? 'danger' : 'info');
+        });
+      }
+
       if (!enemy) {
         const tick = tickWorld(nextPlayer, nextWorld, p.timeDelta || 1);
         nextPlayer.hpCurrent = tick.player.hpCurrent;
         nextPlayer.exhaustion = tick.player.exhaustion;
         nextPlayer.inventory = tick.player.inventory;
-        nextPlayer.statusEffects = tick.player.statusEffects; // Update with processed status effects
+        nextPlayer.statusEffects = tick.player.statusEffects;
         nextWorld.hour = tick.world.hour;
         nextWorld.day = tick.world.day;
         tick.logs.forEach(m => addToast(m, 'info'));
@@ -342,6 +353,31 @@ export default function App() {
           finalLog.push({ type: 'milestone', text: `SPELL LEARNED: ${newSpell.name} — ${newSpell.description}` });
         }
       }
+      // Handle quest system
+      if (p.addQuest?.title) {
+        const existing = nextPlayer.quests.find(q => q.title === p.addQuest.title);
+        if (!existing) {
+          nextPlayer.quests.push({ title: p.addQuest.title, description: p.addQuest.description || '', status: 'active' });
+          addToast(`New Quest: ${p.addQuest.title}`, 'success');
+          finalLog.push({ type: 'milestone', text: `QUEST STARTED: ${p.addQuest.title} — ${p.addQuest.description || ''}` });
+        }
+      }
+      if (p.completeQuest) {
+        const quest = nextPlayer.quests.find(q => q.title === p.completeQuest && q.status === 'active');
+        if (quest) {
+          quest.status = 'completed';
+          addToast(`Quest Complete: ${quest.title}!`, 'success');
+          finalLog.push({ type: 'milestone', text: `QUEST COMPLETED: ${quest.title}` });
+        }
+      }
+      if (p.updateQuest?.title) {
+        const quest = nextPlayer.quests.find(q => q.title === p.updateQuest.title && q.status === 'active');
+        if (quest) {
+          quest.description = p.updateQuest.description || quest.description;
+          addToast(`Quest Updated: ${quest.title}`, 'info');
+        }
+      }
+
       if (p.xpDelta > 0) {
           nextPlayer.xp += p.xpDelta;
           addToast(`+${p.xpDelta} XP`, 'info');
@@ -483,6 +519,8 @@ export default function App() {
 
       setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices(cleanedChoices);
       saveGameLocal(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: cleanedChoices, view: currentEnemy ? 'combat' : 'game', enemy: currentEnemy });
+      setShowSaveIndicator(true);
+      setTimeout(() => setShowSaveIndicator(false), 1500);
     } catch (err) {
       console.error(err);
       addToast("The ethereal plane feels distant... (AI Error)", "danger");
@@ -776,6 +814,7 @@ export default function App() {
                 <span>D{world.day} • {world.hour}:00</span>
                 {world.weather.toLowerCase().includes('storm') ? <CloudLightning size={14} className="text-amber-400" /> : world.weather.toLowerCase().includes('rain') ? <CloudRain size={14} className="text-blue-400" /> : null}
                 <span className="flex items-center gap-1 text-slate-400"><MapPin size={10}/>{getCurrentLocation(world.facts)}</span>
+                {showSaveIndicator && <Save size={10} className="text-emerald-400 animate-pulse" />}
               </div>
             </div>
         </div>
@@ -795,7 +834,7 @@ export default function App() {
                 case 'inventory': return <InventoryScreen player={player!} onClose={() => setView('game')} onUseItem={handleUseItem} onEquip={handleEquip} />;
                 case 'equipment': return <EquipmentScreen player={player!} onClose={() => setView('game')} onEquip={handleEquip} onUnequip={handleUnequip} />;
                 case 'quests': return <QuestScreen player={player!} onClose={() => setView('game')} />;
-                case 'menu': return <MainMenu setView={setView} onClose={() => setView('game')} onSaveGame={() => addToast("Progress Saved", "success")} onNewGame={() => setView('startScreen')} />;
+                case 'menu': return <MainMenu setView={setView} onClose={() => setView('game')} onSaveGame={() => { if (currentSlotId && player) { saveGameLocal(currentSlotId, { player, world, log, choices, view: 'game', enemy }); addToast("Progress Saved", "success"); } }} onNewGame={() => setView('startScreen')} />;
                 case 'rest': return <RestScreen player={player!} onRest={(t) => {
                     if (player) {
                         const rested = { ...player, inventory: [...player.inventory], statusEffects: [...player.statusEffects] };

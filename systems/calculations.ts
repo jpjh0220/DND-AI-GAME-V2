@@ -1,4 +1,4 @@
-import { Player, PlayerStats, Item } from '../types';
+import { Player, PlayerStats, Item, StatusEffect } from '../types';
 
 export const getMod = (score: number) => Math.floor(((score || 10) - 10) / 2);
 
@@ -80,4 +80,58 @@ export const parseDamageRoll = (damageString: string): number => {
     }
 
     return totalDamage + bonus;
+};
+
+/**
+ * Processes all active status effects for one turn:
+ * - Applies hpPerTurn, mpPerTurn, staminaPerTurn
+ * - Decrements numeric durations
+ * - Removes effects whose duration reaches 0
+ * Returns the mutated player and an array of log messages.
+ */
+export const tickStatusEffects = (player: Player): { player: Player; messages: string[] } => {
+    const messages: string[] = [];
+    const remaining: StatusEffect[] = [];
+
+    for (const eff of player.statusEffects) {
+        // Apply per-turn effects
+        if (eff.effect.hpPerTurn) {
+            player.hpCurrent = Math.min(player.hpMax, Math.max(0, player.hpCurrent + eff.effect.hpPerTurn));
+            if (eff.effect.hpPerTurn > 0) {
+                messages.push(`${eff.name}: +${eff.effect.hpPerTurn} HP`);
+            } else {
+                messages.push(`${eff.name}: ${eff.effect.hpPerTurn} HP`);
+            }
+        }
+        if (eff.effect.mpPerTurn) {
+            player.manaCurrent = Math.min(player.manaMax, Math.max(0, player.manaCurrent + eff.effect.mpPerTurn));
+            if (eff.effect.mpPerTurn > 0) {
+                messages.push(`${eff.name}: +${eff.effect.mpPerTurn} MP`);
+            } else {
+                messages.push(`${eff.name}: ${eff.effect.mpPerTurn} MP`);
+            }
+        }
+        if (eff.effect.staminaPerTurn) {
+            player.staminaCurrent = Math.min(player.staminaMax, Math.max(0, player.staminaCurrent + eff.effect.staminaPerTurn));
+            if (eff.effect.staminaPerTurn > 0) {
+                messages.push(`${eff.name}: +${eff.effect.staminaPerTurn} ST`);
+            } else {
+                messages.push(`${eff.name}: ${eff.effect.staminaPerTurn} ST`);
+            }
+        }
+
+        // Decrement duration
+        if (typeof eff.duration === 'number') {
+            eff.duration -= 1;
+            if (eff.duration <= 0) {
+                messages.push(`${eff.name} has worn off.`);
+                continue; // Don't keep this effect
+            }
+        }
+        // 'permanent' effects persist indefinitely
+        remaining.push(eff);
+    }
+
+    player.statusEffects = remaining;
+    return { player, messages };
 };
