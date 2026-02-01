@@ -607,5 +607,273 @@ export const ENCOUNTERS_DB: Encounter[] = [
             { id: 'explore_distortion', label: 'Explore the phenomenon', intent: 'discovery' },
             { id: 'flee_distortion', label: 'Run away quickly', intent: 'travel', staminaCost: 10 }
         ]
+    },
+
+    // === NEW: Desert Region Encounters ===
+    {
+        id: 'desert_dust_devil',
+        name: "Dust Devil",
+        type: 'environmental',
+        description: "A swirling column of sand and debris races across the dunes toward you, growing larger by the second.",
+        choices: [
+            { id: 'dodge_devil', label: 'Dive to the side', intent: 'travel', staminaCost: 8 },
+            { id: 'hunker_down', label: 'Drop flat and cover up', intent: 'travel', staminaCost: 5 }
+        ]
+    },
+    {
+        id: 'desert_pyramid_guardian',
+        name: "Pyramid Guardian",
+        type: 'combat',
+        description: "As you approach the ancient pyramid, a massive animated suit of armor steps from the entrance, its eyes blazing with arcane fire.",
+        challengeRating: 4,
+        enemyIds: ['helmed_horror'],
+        rewards: { xp: 1100, currency: 300, itemIds: ['armor_chain_mail'] }
+    },
+    {
+        id: 'desert_buried_treasure',
+        name: "Buried Treasure",
+        type: 'discovery',
+        description: "The wind shifts the sand to reveal the corner of a buried chest. Ancient runes are carved into its surface.",
+        rewards: { xp: 75, currency: 200 },
+        choices: [
+            { id: 'dig_treasure', label: 'Dig it up carefully', intent: 'discovery' },
+            { id: 'detect_traps', label: 'Check for traps first', intent: 'discovery' },
+            { id: 'leave_buried', label: 'Leave it alone', intent: 'travel' }
+        ]
+    },
+
+    // === NEW: Underdark Encounters ===
+    {
+        id: 'underdark_hook_horror',
+        name: "Hook Horror Ambush",
+        type: 'combat',
+        description: "Clicking echoes through the cavern before hook-clawed monstrosities drop from the ceiling, their vulture-like heads screeching.",
+        challengeRating: 3,
+        enemyIds: ['hook_horror', 'hook_horror'],
+        rewards: { xp: 1400, itemIds: ['iron_ingot'] }
+    },
+    {
+        id: 'underdark_drider_web',
+        name: "Drider's Web",
+        type: 'combat',
+        description: "Sticky webs cover the tunnel ahead. A drider — a drow cursed into spider-form — emerges from the darkness above.",
+        challengeRating: 6,
+        enemyIds: ['drider'],
+        rewards: { xp: 2300, currency: 300 }
+    },
+    {
+        id: 'underdark_aboleth_whisper',
+        name: "Aboleth's Whisper",
+        type: 'social',
+        description: "A voice echoes in your mind, ancient and alien. An aboleth reaches out telepathically, offering forbidden knowledge.",
+        rewards: { xp: 150 },
+        choices: [
+            { id: 'listen_aboleth', label: 'Open your mind to it', intent: 'social' },
+            { id: 'resist_aboleth', label: 'Resist the telepathy', intent: 'social' },
+            { id: 'flee_aboleth', label: 'Get away immediately', intent: 'travel', staminaCost: 10 }
+        ]
+    },
+    {
+        id: 'underdark_purple_worm',
+        name: "Purple Worm Tremor",
+        type: 'combat',
+        description: "The ground shakes violently before a colossal purple worm erupts through the stone floor, its maw wide enough to swallow a horse.",
+        challengeRating: 15,
+        enemyIds: ['purple_worm'],
+        rewards: { xp: 13000, currency: 1000 }
+    },
+
+    // === NEW: Feywild Encounters ===
+    {
+        id: 'fey_displacer_hunt',
+        name: "Displacer Beast Hunt",
+        type: 'combat',
+        description: "A sleek panther-like beast flickers and shifts, never quite where it appears to be. Its tentacles lash out from impossible angles.",
+        challengeRating: 3,
+        enemyIds: ['displacer_beast'],
+        rewards: { xp: 700, itemIds: ['displacer_cloak'] }
+    },
+    {
+        id: 'fey_green_hag_bargain',
+        name: "The Hag's Bargain",
+        type: 'social',
+        description: "A green hag blocks the forest path, offering enchantments in exchange for a year of your memories.",
+        rewards: { xp: 100 },
+        choices: [
+            { id: 'accept_hag', label: 'Accept her bargain', intent: 'social' },
+            { id: 'refuse_hag', label: 'Politely refuse', intent: 'social' },
+            { id: 'fight_hag', label: 'Attack her', intent: 'combat' }
+        ]
+    },
+    {
+        id: 'fey_enchanted_pool',
+        name: "Enchanted Pool",
+        type: 'discovery',
+        description: "A pool of liquid moonlight shimmers in a clearing. Drinking from it could bestow a blessing — or a curse.",
+        rewards: { xp: 75 },
+        choices: [
+            { id: 'drink_pool', label: 'Drink from the pool', intent: 'discovery' },
+            { id: 'fill_flask', label: 'Fill a flask with the water', intent: 'discovery' },
+            { id: 'walk_away_pool', label: 'Walk away', intent: 'travel' }
+        ]
+    },
+
+    // === NEW: Volcanic / Fire Encounters ===
+    {
+        id: 'volcano_lava_flow',
+        name: "Lava Flow",
+        type: 'environmental',
+        description: "The ground cracks open ahead of you and molten lava begins to ooze across the path, cutting off your route.",
+        choices: [
+            { id: 'jump_lava', label: 'Leap across the flow', intent: 'travel', staminaCost: 15 },
+            { id: 'find_path', label: 'Find another way around', intent: 'travel', staminaCost: 8 },
+            { id: 'wait_lava', label: 'Wait for it to cool', intent: 'rest' }
+        ]
+    },
+    {
+        id: 'volcano_fire_elemental',
+        name: "Fire Elemental Eruption",
+        type: 'combat',
+        description: "A pillar of magma erupts and takes humanoid form — a fire elemental, crackling with fury.",
+        challengeRating: 5,
+        enemyIds: ['fire_elemental'],
+        rewards: { xp: 1800, itemIds: ['elemental_core'] }
+    },
+    {
+        id: 'volcano_iron_golem',
+        name: "The Iron Sentinel",
+        type: 'combat',
+        description: "Deep in the fire giant's forge, an iron golem stands sentinel. Its eyes glow red as it activates, steam hissing from its joints.",
+        challengeRating: 16,
+        enemyIds: ['iron_golem'],
+        rewards: { xp: 15000, currency: 2000, itemIds: ['armor_plate'] }
+    },
+
+    // === NEW: Coastal Expansion ===
+    {
+        id: 'coast_kraken_tentacle',
+        name: "Kraken Tentacle",
+        type: 'combat',
+        description: "The sea churns as a massive tentacle erupts from the waves, smashing against the dock. Something immense lurks below.",
+        challengeRating: 23,
+        enemyIds: ['kraken'],
+        rewards: { xp: 50000, currency: 10000 }
+    },
+    {
+        id: 'coast_pirate_ambush',
+        name: "Pirate Ambush",
+        type: 'combat',
+        description: "A jolly roger unfurls as a hidden pirate skiff emerges from behind the rocks. 'Hand over your cargo!'",
+        challengeRating: 2,
+        enemyIds: ['bandit', 'bandit', 'orc'],
+        rewards: { xp: 350, currency: 150 }
+    },
+    {
+        id: 'coast_message_bottle',
+        name: "Message in a Bottle",
+        type: 'discovery',
+        description: "A glass bottle washes ashore, containing a weathered letter. The handwriting is desperate and the ink smeared by sea water.",
+        rewards: { xp: 50 },
+        choices: [
+            { id: 'read_message', label: 'Read the message', intent: 'discovery' },
+            { id: 'toss_bottle', label: 'Throw it back to sea', intent: 'travel' }
+        ]
+    },
+
+    // === NEW: Northern Wastes Encounters ===
+    {
+        id: 'tundra_yeti_attack',
+        name: "Abominable Yeti",
+        type: 'combat',
+        description: "A towering white shape charges through the blizzard — an abominable yeti, its freezing gaze already turning your blood to ice.",
+        challengeRating: 9,
+        enemyIds: ['abominable_yeti'],
+        rewards: { xp: 5000, itemIds: ['yeti_pelt'] }
+    },
+    {
+        id: 'tundra_blizzard',
+        name: "Blinding Blizzard",
+        type: 'environmental',
+        description: "A devastating blizzard rolls in from the north. Visibility drops to nothing and the cold cuts through every layer.",
+        choices: [
+            { id: 'build_shelter', label: 'Build an emergency shelter', intent: 'rest', staminaCost: 15 },
+            { id: 'push_blizzard', label: 'Push through the storm', intent: 'travel', staminaCost: 25 }
+        ]
+    },
+    {
+        id: 'tundra_frozen_traveler',
+        name: "Frozen Traveler",
+        type: 'discovery',
+        description: "You find a traveler frozen solid in the ice, their expression one of terror. They clutch a leather satchel to their chest.",
+        rewards: { xp: 50, currency: 75 },
+        choices: [
+            { id: 'thaw_traveler', label: 'Try to thaw and revive them', intent: 'social' },
+            { id: 'take_satchel', label: 'Take the satchel', intent: 'discovery' },
+            { id: 'mark_location', label: 'Mark the location and move on', intent: 'travel' }
+        ]
+    },
+
+    // === NEW: Urban Expansion ===
+    {
+        id: 'city_sewer_encounter',
+        name: "Sewer Ambush",
+        type: 'combat',
+        description: "In the fetid tunnels beneath the city, a gelatinous cube oozes toward you, dissolving everything in its path.",
+        challengeRating: 2,
+        enemyIds: ['gelatinous_cube'],
+        rewards: { xp: 450, currency: 100, itemIds: ['pot_heal'] }
+    },
+    {
+        id: 'city_cult_ritual',
+        name: "Cult Ritual",
+        type: 'discovery',
+        description: "In the abandoned basement of a clock tower, hooded figures chant around a glowing sigil. Dark energy crackles in the air.",
+        rewards: { xp: 100 },
+        choices: [
+            { id: 'interrupt_ritual', label: 'Interrupt the ritual', intent: 'combat' },
+            { id: 'spy_ritual', label: 'Observe from the shadows', intent: 'discovery' },
+            { id: 'report_ritual', label: 'Report to the guards', intent: 'social' }
+        ]
+    },
+    {
+        id: 'city_gladiator_challenge',
+        name: "Gladiator Challenge",
+        type: 'combat',
+        description: "The arena master calls for challengers! A minotaur champion paws the ground in the fighting pit, eager for blood.",
+        challengeRating: 3,
+        enemyIds: ['minotaur'],
+        rewards: { xp: 700, currency: 500 }
+    },
+
+    // === NEW: Celestial/Planar Encounters ===
+    {
+        id: 'planar_death_knight',
+        name: "Death Knight's Challenge",
+        type: 'combat',
+        description: "A death knight materializes from shadow, its burning eyes fixed on you. 'Prove your worth or perish,' it intones.",
+        challengeRating: 17,
+        enemyIds: ['death_knight'],
+        rewards: { xp: 18000, currency: 5000, itemIds: ['armor_plate'] }
+    },
+    {
+        id: 'planar_solar_trial',
+        name: "Solar's Trial",
+        type: 'social',
+        description: "A radiant solar descends, wings of pure light spreading across the sky. It offers to test your worthiness with a trial of character.",
+        rewards: { xp: 500 },
+        choices: [
+            { id: 'accept_trial', label: 'Accept the trial', intent: 'social' },
+            { id: 'decline_trial', label: 'Respectfully decline', intent: 'travel' },
+            { id: 'ask_purpose', label: 'Ask why you were chosen', intent: 'social' }
+        ]
+    },
+    {
+        id: 'planar_balor_invasion',
+        name: "Balor Invasion",
+        type: 'combat',
+        description: "The sky splits red as a balor — a demon lord wreathed in flame — strides through a portal, whip cracking like thunder.",
+        challengeRating: 19,
+        enemyIds: ['balor'],
+        rewards: { xp: 22000, currency: 5000 }
     }
 ];
