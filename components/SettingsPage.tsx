@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Key, Check, AlertTriangle, ExternalLink, Eye, EyeOff, Loader2, Trash2 } from 'lucide-react';
-import { PROVIDERS, loadProviderConfig, saveProviderConfig, clearProviderConfig, callLLM } from '../api/providers';
+import { PROVIDERS, loadProviderConfig, saveProviderConfig, clearProviderConfig, loadProviderCredentials, callLLM } from '../api/providers';
 import type { ProviderConfig, ProviderId } from '../api/providers';
 
 interface SettingsProps {
@@ -32,11 +32,16 @@ export const SettingsPage: React.FC<SettingsProps> = ({ onClose, onConfigChange 
 
     useEffect(() => {
         const info = PROVIDERS.find(p => p.id === providerId)!;
-        const existing = loadProviderConfig();
-        if (existing?.providerId === providerId) {
-            setModel(existing.model);
+        // Load saved credentials for this specific provider
+        const saved = loadProviderCredentials(providerId);
+        if (saved) {
+            setApiKey(saved.apiKey);
+            setModel(saved.model || info.defaultModel);
+            setBaseUrl(saved.baseUrl || '');
         } else {
+            setApiKey('');
             setModel(info.defaultModel);
+            setBaseUrl('');
         }
         setTestResult(null);
         setSaved(false);

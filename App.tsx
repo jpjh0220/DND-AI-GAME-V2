@@ -9,7 +9,7 @@ import { RefreshCw, Heart, Zap, Wind, Coins, Map, User, Backpack, Star, Menu, Sh
 import { Player, World, LogEntry, Choice, Item, Enemy, SkillCheckDetails, NPC, Achievement, PlayerStats, Recipe, ShopData, Encounter, StatusEffect } from './types';
 import { getFirebaseConfig } from './firebase/index';
 import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost, getProficiencyBonus, resolvePlayerAttack, resolveEnemyDamage, computeGameSnapshot, tickStatusEffects } from './systems/index';
-import { callGeminiAPI, buildPrompt, generateSceneImage, callLLM, loadProviderConfig } from './api/index';
+import { callGeminiAPI, buildPrompt, generateSceneImage, callLLM, loadProviderConfig } from './api/index'; // generateSceneImage kept for portrait generation only
 import type { ProviderConfig } from './api/index';
 import { saveGame as saveGameCloud } from './persistence/cloud';
 import { saveGameLocal, loadGameLocal, deleteSaveLocal, GameState, SaveSlotSummary, getAllSaveSlotSummaries } from './persistence/local';
@@ -265,8 +265,7 @@ export default function App() {
         if (npcData) {
             const existing = nextPlayer.knownNPCs.find(n => n.id === npcData.id);
             if (!existing) {
-                const npcImg = await generateSceneImage(`Fantasy portrait: ${npcData.name}, ${npcData.role}.`, llmConfig?.providerId === 'gemini' ? llmConfig.apiKey : undefined);
-                const newNPC = { ...npcData, portrait: npcImg };
+                const newNPC = { ...npcData, portrait: null };
                 nextPlayer.knownNPCs.push(newNPC); 
                 nextPlayer.activeNPC = newNPC;
             } else { nextPlayer.activeNPC = existing; }
@@ -450,11 +449,7 @@ export default function App() {
           }
       }
 
-      let newImg: string | null = null;
-      if (p.scenePrompt) {
-          newImg = await generateSceneImage(p.scenePrompt, llmConfig?.providerId === 'gemini' ? llmConfig.apiKey : undefined);
-      }
-      finalLog.push({ type: 'narration' as const, text: aiData.narration, image: newImg });
+      finalLog.push({ type: 'narration' as const, text: aiData.narration });
       
       const cleanedChoices = (aiData.choices || []).map((c: Choice) => ({
         ...c,

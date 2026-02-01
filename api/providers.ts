@@ -37,8 +37,8 @@ export const PROVIDERS: ProviderInfo[] = [
         id: 'gemini',
         name: 'Google Gemini',
         description: 'Google AI Studio / Gemini API',
-        defaultModel: 'gemini-3-flash-preview',
-        models: ['gemini-3-flash-preview', 'gemini-2.5-flash-preview', 'gemini-2.5-pro-preview'],
+        defaultModel: 'gemini-2.5-flash',
+        models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
         requiresBaseUrl: false,
         docsUrl: 'https://aistudio.google.com/apikey',
     },
@@ -72,19 +72,69 @@ export const PROVIDERS: ProviderInfo[] = [
 ];
 
 // --- Storage ---
+// Active config key stores { providerId, model } — the currently selected provider.
+// Per-provider keys store { apiKey, model, baseUrl } so switching providers doesn't lose credentials.
 
-const STORAGE_KEY = 'mythic_realms_llm_config';
+const ACTIVE_CONFIG_KEY = 'mythic_realms_active_provider';
+const PROVIDER_KEY_PREFIX = 'mythic_realms_provider_';
+// Legacy key for migration from single-config storage
+const LEGACY_KEY = 'mythic_realms_llm_config';
+
+function getProviderStorageKey(providerId: ProviderId): string {
+    return `${PROVIDER_KEY_PREFIX}${providerId}`;
+}
 
 export const saveProviderConfig = (config: ProviderConfig): void => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    // Save per-provider credentials
+    const providerData: any = { apiKey: config.apiKey, model: config.model };
+    if (config.baseUrl) providerData.baseUrl = config.baseUrl;
+    localStorage.setItem(getProviderStorageKey(config.providerId), JSON.stringify(providerData));
+    // Save active provider selection
+    localStorage.setItem(ACTIVE_CONFIG_KEY, JSON.stringify({ providerId: config.providerId, model: config.model }));
+    // Clean up legacy key
+    localStorage.removeItem(LEGACY_KEY);
 };
 
 export const loadProviderConfig = (): ProviderConfig | null => {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        // Try new per-provider storage first
+        const activeRaw = localStorage.getItem(ACTIVE_CONFIG_KEY);
+        if (activeRaw) {
+            const active = JSON.parse(activeRaw);
+            const providerRaw = localStorage.getItem(getProviderStorageKey(active.providerId));
+            if (providerRaw) {
+                const providerData = JSON.parse(providerRaw);
+                return {
+                    providerId: active.providerId,
+                    apiKey: providerData.apiKey,
+                    model: providerData.model || active.model,
+                    ...(providerData.baseUrl ? { baseUrl: providerData.baseUrl } : {}),
+                };
+            }
+        }
+        // Fall back to legacy single-config storage and migrate
+        const legacyRaw = localStorage.getItem(LEGACY_KEY);
+        if (legacyRaw) {
+            const parsed = JSON.parse(legacyRaw);
+            if (parsed?.providerId && parsed?.apiKey) {
+                // Migrate to new format
+                saveProviderConfig(parsed as ProviderConfig);
+                return parsed as ProviderConfig;
+            }
+        }
+        return null;
+    } catch {
+        return null;
+    }
+};
+
+/** Load saved credentials for a specific provider (without changing active provider) */
+export const loadProviderCredentials = (providerId: ProviderId): { apiKey: string; model: string; baseUrl?: string } | null => {
+    try {
+        const raw = localStorage.getItem(getProviderStorageKey(providerId));
         if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (parsed && parsed.providerId && parsed.apiKey) return parsed as ProviderConfig;
+        const data = JSON.parse(raw);
+        if (data?.apiKey) return data;
         return null;
     } catch {
         return null;
@@ -92,7 +142,15 @@ export const loadProviderConfig = (): ProviderConfig | null => {
 };
 
 export const clearProviderConfig = (): void => {
-    localStorage.removeItem(STORAGE_KEY);
+    const activeRaw = localStorage.getItem(ACTIVE_CONFIG_KEY);
+    if (activeRaw) {
+        try {
+            const active = JSON.parse(activeRaw);
+            localStorage.removeItem(getProviderStorageKey(active.providerId));
+        } catch { /* ignore */ }
+    }
+    localStorage.removeItem(ACTIVE_CONFIG_KEY);
+    localStorage.removeItem(LEGACY_KEY);
 };
 
 // --- Unified LLM Call ---

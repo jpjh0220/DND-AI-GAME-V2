@@ -56,12 +56,14 @@ GM Mode: ${gmMode.toUpperCase()}
 2. STAY in the current scene. Do not skip ahead, fast-forward time, or introduce unrelated events.
 3. Respond ONLY to the player's stated action. Do not add extra actions the player didn't take.
 4. RESPECT the character's mechanical state below. A wounded, exhausted, or encumbered character should struggle. A well-equipped character should feel powerful.
-5. Reference the player's EQUIPPED GEAR, FEATS, and CONDITIONS in your narration. They matter.
-6. If the player has active STATUS EFFECTS or CONDITIONS, narrate their impact.
-7. Choices you offer MUST be relevant to the current scene. No random topic changes.
-8. NEVER teleport the player, introduce deus-ex-machina rescues, or resolve conflicts without player input.
-9. Maintain continuity with established world facts and previous events.
-10. The character's PERSONALITY (traits, ideals, bonds, flaws) should influence NPC reactions and available dialogue.
+5. ONLY reference gear the player ACTUALLY HAS EQUIPPED (listed under EQUIPPED GEAR). NEVER mention, describe, or narrate the player using weapons, armor, or items they do not have. If EQUIPPED GEAR is empty, the player is unarmed/unarmored. Do NOT invent or assume equipment.
+6. ONLY reference items the player has in their INVENTORY. Do not mention potions, scrolls, tools, or other items the player does not possess.
+7. If the player has active STATUS EFFECTS or CONDITIONS, narrate their impact.
+8. Choices you offer MUST be relevant to the current scene. No random topic changes.
+9. NEVER teleport the player, introduce deus-ex-machina rescues, or resolve conflicts without player input.
+10. Maintain continuity with established world facts and previous events.
+11. The character's PERSONALITY (traits, ideals, bonds, flaws) should influence NPC reactions and available dialogue.
+12. Do NOT narrate the player performing actions they did not choose. Only describe the outcome of the player's stated action.
 
 === WORLD STATE ===
 Day ${world.day}, ${world.hour}:00. Weather: ${world.weather}.
@@ -115,7 +117,7 @@ ${snapshot.conditions.exhaustionLevel >= 3 ? 'WARNING: Player has disadvantage o
 
 Instructions:
 1. This is the player's turn. Narrate what happens based on their action.
-2. Reference the player's weapon and fighting style by name.
+2. ONLY reference the weapon listed above under "Player weapon". If the player is Unarmed, describe fists/kicks — do NOT invent weapons. NEVER describe the player using a sword, staff, bow, or any weapon they do not have equipped.
 3. Return playerAttackHitsEnemy and enemyAttackHitsPlayer booleans.
 4. If enemy HP would drop to 0, set endCombat: true and describe the killing blow.
 5. Account for the player's feats and conditions in the narration.
@@ -127,7 +129,6 @@ JSON Schema: {
     "enemyAttackHitsPlayer": "boolean",
     "xpDelta": 0,
     "endCombat": false,
-    "scenePrompt": "cinematic battle art description",
     "achievement": "string (optional achievement id)",
     "addStatusEffect": {"id": "string", "duration": "number|'permanent'"},
     "removeStatusEffect": "string",
@@ -143,7 +144,7 @@ JSON Schema: {
 Instructions:
 1. Respond ONLY to the player's stated action. Stay in the current scene.
 2. If the action costs resources, set manaCost/staminaCost in choices.
-3. Reference the player's equipped gear, conditions, and feats when relevant.
+3. ONLY reference gear the player actually has equipped (see EQUIPPED GEAR above). NEVER describe the player wearing, carrying, or using items they don't have. Do NOT invent gear.
 4. Offer 2-4 choices that are NATURAL CONTINUATIONS of the current scene.
 5. Each choice should feel different (cautious vs bold, social vs physical, etc).
 6. If the player is wounded, starving, exhausted, or encumbered — reflect it in the narration.
@@ -160,7 +161,6 @@ JSON Schema: {
   "patch": {
     "timeDelta": 1, "currencyDelta": 0, "hpDelta": 0,
     "addItemId": "string", "addFact": "string", "xpDelta": 0,
-    "scenePrompt": "fantasy environment concept art",
     "startCombat": {"name": "string", "hp": "number", "ac": "number", "damageRoll": "string"},
     "startShop": { "shopId": "string" },
     "skillCheck": { "skill": "string", "dc": "number" },
@@ -219,7 +219,7 @@ export const generateSpeech = async (text: string, apiKeyOverride?: string): Pro
     }
 };
 
-export { callLLM, loadProviderConfig, saveProviderConfig, clearProviderConfig, PROVIDERS } from './providers';
+export { callLLM, loadProviderConfig, saveProviderConfig, clearProviderConfig, loadProviderCredentials, PROVIDERS } from './providers';
 export type { ProviderConfig, ProviderId } from './providers';
 
 /** @deprecated Use callLLM with ProviderConfig instead. Kept for backwards compatibility. */
