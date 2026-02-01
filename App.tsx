@@ -9,7 +9,8 @@ import { RefreshCw, Heart, Zap, Wind, Coins, Map, User, Backpack, Star, Menu, Sh
 import { Player, World, LogEntry, Choice, Item, Enemy, SkillCheckDetails, NPC, Achievement, PlayerStats, Recipe, ShopData, Encounter, StatusEffect } from './types';
 import { getFirebaseConfig } from './firebase/index';
 import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost, getProficiencyBonus } from './systems/index';
-import { callGeminiAPI, buildPrompt, generateSceneImage } from './api/index';
+import { callGeminiAPI, buildPrompt, generateSceneImage, callLLM, loadProviderConfig } from './api/index';
+import type { ProviderConfig } from './api/index';
 import { saveGame as saveGameCloud } from './persistence/cloud';
 import { saveGameLocal, loadGameLocal, deleteSaveLocal, GameState, SaveSlotSummary, getAllSaveSlotSummaries } from './persistence/local';
 import {
@@ -40,6 +41,7 @@ export default function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState<string>("");
   const memoryStoreRef = useRef<MemoryStore | null>(null);
+  const [llmConfig, setLlmConfig] = useState<ProviderConfig | null>(() => loadProviderConfig());
 
 
   useEffect(() => {
@@ -188,7 +190,13 @@ export default function App() {
     if (choice?.intent === 'craft') { if (choice.id === 'crafting') setView('crafting'); return; }
 
     if (processing || !actionText || !actionText.trim() || !player || !currentSlotId) return;
-    
+
+    if (!llmConfig && !process.env.API_KEY) {
+        addToast('Configure an AI provider in Settings first.', 'danger');
+        setView('settings');
+        return;
+    }
+
     let nextPlayer = JSON.parse(JSON.stringify(player)) as Player;
     let nextWorld = { ...world, facts: [...world.facts] };
     const currentWeight = calculateEncumbrance(nextPlayer.inventory);
@@ -228,13 +236,14 @@ export default function App() {
     }
 
     try {
-      const model = "gemini-3-flash-preview";
       // RAG: Retrieve relevant past memories to augment the prompt
       const retrievedMemories = memoryStoreRef.current
           ? memoryStoreRef.current.retrieve(actionText, 5)
           : [];
       const prompt = buildPrompt(nextPlayer, nextWorld, actionText, enemy, rollOverride, worldEventTriggered, retrievedMemories);
-      const aiData = await callGeminiAPI(prompt, model);
+      const aiData = llmConfig
+          ? await callLLM(prompt, llmConfig)
+          : await callGeminiAPI(prompt, "gemini-3-flash-preview");
       const p = aiData.patch || {};
       let finalLog = [...nextLog];
 
@@ -255,7 +264,7 @@ export default function App() {
         if (npcData) {
             const existing = nextPlayer.knownNPCs.find(n => n.id === npcData.id);
             if (!existing) {
-                const npcImg = await generateSceneImage(`Fantasy portrait: ${npcData.name}, ${npcData.role}.`);
+                const npcImg = await generateSceneImage(`Fantasy portrait: ${npcData.name}, ${npcData.role}.`, llmConfig?.providerId === 'gemini' ? llmConfig.apiKey : undefined);
                 const newNPC = { ...npcData, portrait: npcImg };
                 nextPlayer.knownNPCs.push(newNPC); 
                 nextPlayer.activeNPC = newNPC;
@@ -400,7 +409,7 @@ export default function App() {
 
       let newImg: string | null = null;
       if (p.scenePrompt) {
-          newImg = await generateSceneImage(p.scenePrompt);
+          newImg = await generateSceneImage(p.scenePrompt, llmConfig?.providerId === 'gemini' ? llmConfig.apiKey : undefined);
       }
       finalLog.push({ type: 'narration' as const, text: aiData.narration, image: newImg });
       
@@ -608,7 +617,7 @@ export default function App() {
     setProcessing(true);
     const prompt = `Fantasy character portrait of ${player.name}, a ${player.race} ${player.class}. ${player.concept}`;
     try {
-      const portrait = await generateSceneImage(prompt);
+      const portrait = await generateSceneImage(prompt, llmConfig?.providerId === 'gemini' ? llmConfig.apiKey : undefined);
       if (portrait) {
         const nextPlayer = { ...player, portrait };
         setPlayer(nextPlayer);
@@ -801,7 +810,7 @@ export default function App() {
                 }} onClose={() => setView('game')} />;
                 case 'journal': return <JournalScreen log={log} world={world} onClose={() => setView('game')} />;
                 case 'map': return <MapScreen world={world} onClose={() => setView('game')} />;
-                case 'settings': return <SettingsPage onClose={() => setView('game')} />;
+                case 'settings': return <SettingsPage onClose={() => setView('game')} onConfigChange={(c) => setLlmConfig(c)} />;
                 case 'spells': return <SpellScreen player={player!} onClose={() => setView('game')} onCast={(spellName) => { setView('game'); executeTurn(`I cast ${spellName}`); }} />;
                 case 'codex': return <CodexScreen player={player!} onClose={() => setView('game')} />;
                 case 'party': return <PartyScreen player={player!} onClose={() => setView('game')} />;
