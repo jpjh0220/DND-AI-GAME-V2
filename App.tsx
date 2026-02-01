@@ -52,6 +52,7 @@ export default function App() {
   const [currentSlotId, setCurrentSlotId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [activeSkillCheck, setActiveSkillCheck] = useState<SkillCheckDetails & { dc: number, text: string } | null>(null);
+  const [pendingSkillCheckChoice, setPendingSkillCheckChoice] = useState<Choice | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState<string>("");
   const memoryStoreRef = useRef<MemoryStore | null>(null);
@@ -285,9 +286,9 @@ export default function App() {
           const statKey = ALL_SKILLS[skill as keyof typeof ALL_SKILLS];
           const bonus = getMod(nextPlayer.stats[statKey]) + (nextPlayer.proficiencies.skills.includes(skill) ? getProficiencyBonus(nextPlayer.level) : 0);
           const roll = Math.floor(Math.random() * 20) + 1;
-          // FIX: Add 'text: actionText' to activeSkillCheck state.
           setActiveSkillCheck({ skill, roll, bonus, total: roll + bonus, dc, success: roll + bonus >= dc, text: actionText });
-          setPlayer(nextPlayer); setProcessing(false); 
+          setPendingSkillCheckChoice(choice); // Preserve choice context for the follow-up call
+          setPlayer(nextPlayer); setProcessing(false);
           return;
       }
 
@@ -503,7 +504,15 @@ export default function App() {
           }
       }
 
-      finalLog.push({ type: 'narration' as const, text: aiData.narration });
+      if (aiData.narration) {
+        finalLog.push({ type: 'narration' as const, text: aiData.narration });
+      } else if (rollOverride) {
+        // Fallback narration if AI returned no text after a skill check
+        const outcomeText = rollOverride.success
+          ? `Your ${rollOverride.skill} check succeeds! (Rolled ${rollOverride.total} vs DC ${rollOverride.dc})`
+          : `Your ${rollOverride.skill} check fails. (Rolled ${rollOverride.total} vs DC ${rollOverride.dc})`;
+        finalLog.push({ type: 'narration' as const, text: outcomeText });
+      }
       
       const cleanedChoices = (aiData.choices || []).map((c: Choice) => ({
         ...c,
@@ -570,7 +579,18 @@ export default function App() {
       persistGame(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: cleanedChoices, view: currentEnemy ? 'combat' : 'game', enemy: currentEnemy }, { showIndicator: true });
     } catch (err) {
       console.error(err);
-      addToast("The ethereal plane feels distant... (AI Error)", "danger");
+      // If this was a skill check follow-up, provide fallback narration so the story doesn't break
+      if (rollOverride) {
+        const outcomeText = rollOverride.success
+          ? `Your ${rollOverride.skill} check succeeds! (Rolled ${rollOverride.total} vs DC ${rollOverride.dc})`
+          : `Your ${rollOverride.skill} check fails. (Rolled ${rollOverride.total} vs DC ${rollOverride.dc})`;
+        const fallbackLog = [...log, { type: 'skillcheck' as const, text: `${rollOverride.skill} Roll: ${rollOverride.total} (DC ${rollOverride.dc})`, details: rollOverride }, { type: 'narration' as const, text: outcomeText }];
+        setActiveSkillCheck(null);
+        setLog(fallbackLog);
+        addToast("AI couldn't narrate the outcome, but your roll still counts.", "danger");
+      } else {
+        addToast("The ethereal plane feels distant... (AI Error)", "danger");
+      }
     }
     setProcessing(false);
   };
@@ -841,7 +861,7 @@ export default function App() {
   return (
     <div className="h-screen bg-slate-950 text-slate-200 flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden font-sans relative">
       <AtmosphereOverlay world={world} />
-      {activeSkillCheck && <DiceRollOverlay {...activeSkillCheck} onComplete={() => executeTurn(activeSkillCheck.text, undefined, activeSkillCheck)} />}
+      {activeSkillCheck && <DiceRollOverlay {...activeSkillCheck} onComplete={() => { const sc = activeSkillCheck; const ch = pendingSkillCheckChoice; setPendingSkillCheckChoice(undefined); executeTurn(sc.text, ch, sc); }} />}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       
       <div className="bg-slate-900 border-b border-slate-800 p-3 flex flex-col gap-2 shrink-0 z-10">
