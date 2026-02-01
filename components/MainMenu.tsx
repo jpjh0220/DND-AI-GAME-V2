@@ -38,7 +38,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ setView, onClose, onSaveGame
         {menuItems.map(item => (
           <button 
             key={item.label} 
-            onClick={() => { console.log(`[DEBUG] MainMenu navigation to: ${item.view}`); setView(item.view); }} 
+            onClick={() => setView(item.view)} 
             className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col items-center gap-2 hover:bg-slate-800 hover:border-indigo-500/50 transition-all group"
           >
             {item.icon}
@@ -47,7 +47,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ setView, onClose, onSaveGame
         ))}
         {/* Achievements moved to bottom for consistency */}
         <button 
-            onClick={() => { console.log(`[DEBUG] MainMenu navigation to: achievements`); setView('achievements'); }} 
+            onClick={() => setView('achievements')} 
             className="col-span-2 bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col items-center gap-2 hover:bg-slate-800 hover:border-amber-500/50 transition-all group"
         >
             <Trophy size={20} className="text-amber-500 group-hover:scale-110 transition-transform" />

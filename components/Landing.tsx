@@ -10,7 +10,7 @@ export const Landing: React.FC<{ onStart: () => void }> = ({ onStart }) => (
             MYTHIC REALMS
         </h1>
         <button 
-            onClick={() => { console.log('[DEBUG] Landing button clicked: Enter World'); onStart(); }} 
+            onClick={onStart} 
             className="w-full max-w-xs py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-xl shadow-indigo-900/20 active:scale-95 flex items-center justify-center gap-2">
             Enter World
         </button>
