@@ -1,7 +1,7 @@
 import { Choice, Player, World } from '../types';
 import { calculateEncumbrance, calculateMaxCarry } from './calculations';
 
-export type ActionModifierId = 'storm' | 'rain' | 'encumbered';
+export type ActionModifierId = 'storm' | 'rain' | 'encumbered' | 'exhausted';
 
 export interface ActionModifier {
     id: ActionModifierId;
@@ -43,6 +43,15 @@ export const getActionModifiers = (player: Player, world: World): ActionModifier
         });
     }
 
+    // Exhaustion level 2+: speed halved → extra stamina for travel/combat
+    if (player.exhaustion >= 2) {
+        modifiers.push({
+            id: 'exhausted',
+            label: `Exhaustion ${player.exhaustion}`,
+            description: `Exhaustion level ${player.exhaustion}: +50% stamina costs.`,
+        });
+    }
+
     return modifiers;
 };
 
@@ -65,6 +74,8 @@ export const getChoiceEffectiveCost = (
             if (choice.intent === 'travel' || choice.intent === 'combat') {
                 staminaCost *= 2;
             }
+        } else if (mod.id === 'exhausted') {
+            staminaCost = Math.ceil(staminaCost * 1.5);
         }
     });
 
