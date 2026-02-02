@@ -6,18 +6,40 @@ export const calculateEncumbrance = (inventory: Item[]) => (inventory || []).red
 
 export const calculateMaxCarry = (str: number) => (str || 10) * 15;
 
+/** @deprecated Use computeAC from engine.ts for full D&D 5E rules. This wrapper delegates to it. */
 export const calculatePlayerAC = (player: Player): number => {
-    let totalAC = 0;
-    const armorItems = Object.values(player.equipment).filter(item => item && typeof item.ac === 'number');
-    
-    if (armorItems.length === 0) {
-        return 10 + getMod(player.stats.dex); // Unarmored AC
+    const dexMod = getMod(player.stats.dex);
+    const equipment = player.equipment;
+    let baseAC = 10 + dexMod;
+    let shieldBonus = 0;
+
+    if (player.feats.includes('dragon_hide') && !equipment.armor) {
+        baseAC = 13 + dexMod;
     }
-    // Simplified AC: Sum of all equipped items with an AC value.
-    armorItems.forEach(item => {
-        totalAC += item.ac || 0;
-    });
-    return totalAC;
+
+    if (equipment.armor?.ac) {
+        const armorAC = equipment.armor.ac;
+        if (armorAC >= 16) {
+            baseAC = armorAC; // Heavy: no DEX
+        } else if (armorAC >= 13) {
+            const dexCap = player.feats.includes('medium_armor_master') ? 3 : 2;
+            baseAC = armorAC + Math.min(dexMod, dexCap); // Medium: capped DEX
+        } else {
+            baseAC = armorAC + dexMod; // Light: full DEX
+        }
+    }
+
+    if (equipment.offHand?.ac) shieldBonus = equipment.offHand.ac;
+    if (player.feats.includes('dual_wielder') && equipment.mainHand && equipment.offHand && !equipment.offHand.ac) {
+        shieldBonus += 1;
+    }
+
+    let acMod = 0;
+    for (const effect of player.statusEffects) {
+        if (effect.effect.acModifier) acMod += effect.effect.acModifier;
+    }
+
+    return baseAC + shieldBonus + acMod;
 };
 
 export const getProficiencyBonus = (level: number): number => Math.ceil(level / 4) + 1;

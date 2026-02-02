@@ -219,7 +219,16 @@ export default function App() {
   };
 
   const executeTurn = async (actionText: string, choice?: Choice, rollOverride?: SkillCheckDetails & { dc: number, text: string }) => {
-    if (choice?.intent === 'system') { if (choice.id === 'settings') setView('settings'); return; }
+    if (choice?.intent === 'system') {
+      if (choice.id === 'settings') setView('settings');
+      else if (choice.id === 'death_menu') { setView('landing'); setPlayer(null); setLog([]); setChoices([]); }
+      else if (choice.id === 'death_load' && currentSlotId) {
+        const saved = loadGameLocal(currentSlotId);
+        if (saved) { setPlayer(saved.player); setWorld(saved.world); setLog(saved.log); setChoices(saved.choices || []); setView(saved.view || 'game'); addToast('Save loaded.', 'success'); }
+        else { addToast('No save found.', 'danger'); setView('landing'); }
+      }
+      return;
+    }
     if (choice?.intent === 'craft') { setView('crafting'); return; }
     if (choice?.intent === 'rest') { setView('rest'); return; }
 
@@ -260,7 +269,7 @@ export default function App() {
     const currentLocData = LOCATIONS_DB.find(loc => loc.name === currentLocationFacts);
     const hasEncounters = (currentLocData?.encounters?.length || 0) > 0;
     const isExploration = !enemy && (choice?.intent === 'travel' || choice?.intent === 'social' || !choice);
-    const worldEventTriggered = isExploration && hasEncounters && Math.random() < 0.15; // 15% chance for encounter
+    const worldEventTriggered = isExploration && hasEncounters && Math.random() < 0.08; // 8% chance for encounter
 
     setProcessing(true); setInput("");
     let nextLog = [...log];
@@ -517,7 +526,7 @@ export default function App() {
               const shopInventoryItems: Item[] = shopData.inventory
                   .map(invItem => {
                       const item = ITEMS_DB.find(dbItem => dbItem.id === invItem.itemId);
-                      return item ? Array(invItem.quantity).fill({ ...item }) : null;
+                      return item ? Array.from({ length: invItem.quantity }, () => ({ ...item })) : null;
                   })
                   .filter((item): item is Item[] => !!item)
                   .flat();
@@ -615,9 +624,13 @@ export default function App() {
       if (nextPlayer.hpCurrent <= 0 && !currentEnemy) {
           nextPlayer.hpCurrent = 0;
           finalLog.push({ type: 'worldevent', text: `${nextPlayer.name} has fallen. The light fades from your eyes as darkness claims you...` });
-          setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices([]);
-          persistGame(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: [], view: 'game', enemy: null });
-          addToast('You have died. Start a new game from the menu.', 'danger');
+          const deathChoices: Choice[] = [
+            { id: 'death_load', label: 'Load Last Save', intent: 'system', manaCost: 0, staminaCost: 0 },
+            { id: 'death_menu', label: 'Return to Main Menu', intent: 'system', manaCost: 0, staminaCost: 0 },
+          ];
+          setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices(deathChoices);
+          persistGame(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: deathChoices, view: 'game', enemy: null });
+          addToast('You have died.', 'danger');
           setProcessing(false);
           return;
       }
