@@ -277,7 +277,7 @@ export default function App() {
       const prompt = buildPrompt(nextPlayer, nextWorld, actionText, enemy, rollOverride, worldEventTriggered, retrievedMemories, choice?.intent);
       const aiData = llmConfig
           ? await callLLM(prompt, llmConfig)
-          : await callGeminiAPI(prompt, "gemini-3-flash-preview");
+          : await callGeminiAPI(prompt, "gemini-2.0-flash");
       const p = aiData.patch || {};
       let finalLog = [...nextLog];
 
@@ -475,7 +475,31 @@ export default function App() {
           nextPlayer.hpCurrent = Math.max(0, nextPlayer.hpCurrent - damage);
         }
         if (p.endCombat || currentEnemy.hp <= 0) {
-          if (currentEnemy.hp <= 0) finalLog.push({ type: 'milestone', text: `${currentEnemy.name} slain.` });
+          if (currentEnemy.hp <= 0) {
+            finalLog.push({ type: 'milestone', text: `${currentEnemy.name} slain.` });
+            // Award XP from enemy data
+            if (currentEnemy.xp && currentEnemy.xp > 0 && (!p.xpDelta || p.xpDelta === 0)) {
+              nextPlayer.xp += currentEnemy.xp;
+              addToast(`+${currentEnemy.xp} XP`, 'success');
+            }
+            // Drop loot from enemy data
+            if (currentEnemy.loot && currentEnemy.loot.length > 0) {
+              for (const lootId of currentEnemy.loot) {
+                const lootItem = ITEMS_DB.find(i => i.id === lootId);
+                if (lootItem) {
+                  nextPlayer.inventory.push({ ...lootItem });
+                  addToast(`Loot: ${lootItem.name}`, 'success');
+                  finalLog.push({ type: 'milestone', text: `LOOT: ${lootItem.name}` });
+                }
+              }
+            }
+            // Award currency based on enemy challenge rating
+            const challengeGold = Math.floor((currentEnemy.challenge || 1) * 50);
+            if (challengeGold > 0) {
+              nextPlayer.currency += challengeGold;
+              addToast(`+${challengeGold} copper`, 'info');
+            }
+          }
           setEnemy(null); currentEnemy = null; setView('game');
         }
       }
@@ -929,14 +953,21 @@ export default function App() {
                     if (player) {
                         const rested = { ...player, inventory: [...player.inventory], statusEffects: [...player.statusEffects] };
                         if (t === 'short') {
+                            const hitDieRoll = Math.floor(Math.random() * 10) + 1;
+                            rested.hpCurrent = Math.min(rested.hpMax, rested.hpCurrent + hitDieRoll);
                             rested.staminaCurrent = rested.staminaMax;
-                            addToast('Stamina fully restored', 'success');
+                            addToast(`+${hitDieRoll} HP (1d10), Stamina restored`, 'success');
                         } else {
                             rested.hpCurrent = rested.hpMax;
                             rested.manaCurrent = rested.manaMax;
                             rested.staminaCurrent = rested.staminaMax;
                             rested.exhaustion = Math.max(0, rested.exhaustion - 1);
-                            addToast('HP, Mana & Stamina fully restored', 'success');
+                            // Consume 1 ration and 1 waterskin
+                            const rationIdx = rested.inventory.findIndex(i => i.id === 'ration');
+                            if (rationIdx > -1) rested.inventory.splice(rationIdx, 1);
+                            const waterIdx = rested.inventory.findIndex(i => i.id === 'waterskin');
+                            if (waterIdx > -1) rested.inventory.splice(waterIdx, 1);
+                            addToast('HP, Mana & Stamina fully restored (-1 Ration, -1 Water)', 'success');
                         }
                         setPlayer(rested);
                         persistGame(currentSlotId, { player: rested, world, log, choices, view: 'game', enemy });
