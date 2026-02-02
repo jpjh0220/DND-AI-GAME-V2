@@ -30,13 +30,29 @@ export const InventoryScreen: React.FC<ScreenProps> = ({ player, onClose, onUseI
   };
 
   const filteredInventory = useMemo(() => {
-    return player.inventory.map((item, originalIndex) => ({ item, originalIndex })).filter(({ item }) => {
+    const indexed = player.inventory.map((item, originalIndex) => ({ item, originalIndex })).filter(({ item }) => {
         if (activeTab === 'all') return true;
         if (activeTab === 'weapons') return item.type === 'weapon';
         if (activeTab === 'armor') return item.type === 'armor';
         if (activeTab === 'consumables') return item.type === 'consumable' || item.type === 'food' || item.type === 'water';
         return true;
     });
+    // Stack identical consumable/food/water/material/crafting items by id
+    const stackable = new Set(['consumable', 'food', 'water', 'material', 'crafting', 'tool']);
+    const stacked: { item: Item; originalIndex: number; quantity: number }[] = [];
+    const seen = new Map<string, number>(); // id -> index in stacked
+    for (const entry of indexed) {
+      if (stackable.has(entry.item.type) && entry.item.id) {
+        const existing = seen.get(entry.item.id);
+        if (existing !== undefined) {
+          stacked[existing].quantity += 1;
+          continue;
+        }
+        seen.set(entry.item.id, stacked.length);
+      }
+      stacked.push({ ...entry, quantity: 1 });
+    }
+    return stacked;
   }, [player.inventory, activeTab]);
 
   const TabButton = ({ tab, icon, label }: { tab: InventoryTab, icon: React.ReactNode, label: string }) => (
@@ -96,14 +112,17 @@ export const InventoryScreen: React.FC<ScreenProps> = ({ player, onClose, onUseI
                     <p className="text-xs mt-1 text-slate-600">Items you find on your journey will appear here.</p>
                 </div>
             )}
-            {filteredInventory.map(({ item, originalIndex }) => (
-                <div 
-                  key={`${item.id}-${originalIndex}`} 
+            {filteredInventory.map(({ item, originalIndex, quantity }) => (
+                <div
+                  key={`${item.id}-${originalIndex}`}
                   onClick={() => setInspectedItem({item, index: originalIndex})}
                   className={`flex justify-between items-center p-3 bg-slate-900 rounded-xl border transition-all hover:border-slate-600 cursor-pointer ${item.rarity === 'rare' ? 'border-amber-900/50 shadow-[0_0_10px_rgba(245,158,11,0.1)]' : item.rarity === 'legendary' ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'border-slate-800'}`}
                 >
                     <div className="flex flex-col flex-1 min-w-0">
-                        <span className={`text-sm font-bold truncate ${item.rarity === 'legendary' ? 'text-amber-400 font-black' : item.rarity === 'rare' ? 'text-indigo-300' : 'text-slate-200'}`}>{item.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-bold truncate ${item.rarity === 'legendary' ? 'text-amber-400 font-black' : item.rarity === 'rare' ? 'text-indigo-300' : 'text-slate-200'}`}>{item.name}</span>
+                          {quantity > 1 && <span className="text-[10px] font-black text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-md">x{quantity}</span>}
+                        </div>
                         <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-[9px] text-slate-500 uppercase font-mono tracking-wider">{item.type}</span>
                             {item.weight && <span className="text-[9px] text-slate-600 font-mono">| {item.weight} lbs</span>}

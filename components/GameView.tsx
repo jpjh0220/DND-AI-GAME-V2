@@ -137,7 +137,16 @@ export const GameView: React.FC<GameViewProps> = ({ log, choices, processing, in
             </div>
           )
         })}
-        {processing && <div className="text-xs text-slate-500 italic p-2 animate-pulse">The mists of destiny are shifting...</div>}
+        {processing && (
+          <div className="flex items-center gap-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50 mx-2 animate-in fade-in">
+            <div className="flex gap-1">
+              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}/>
+              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}/>
+              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}/>
+            </div>
+            <span className="text-xs text-slate-400 italic">The Game Master is weaving your fate...</span>
+          </div>
+        )}
       </div>
       <div className="bg-slate-900 border-t border-slate-800 p-3 pb-safe shrink-0">
         {actionHints.length > 0 && (

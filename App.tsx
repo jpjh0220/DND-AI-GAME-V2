@@ -517,6 +517,7 @@ export default function App() {
           const lvl = handleLevelUp(nextPlayer);
           Object.assign(nextPlayer, lvl.player);
           lvl.messages.forEach(m => finalLog.push({ type: 'levelup', text: m }));
+          addToast(`Level ${nextPlayer.level}! HP fully restored.`, 'success');
       }
 
       // NEW: Handle starting a shop (now using shopId from DB)
