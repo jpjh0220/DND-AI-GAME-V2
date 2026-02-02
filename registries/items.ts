@@ -295,6 +295,8 @@ export const ITEMS_DB: Item[] = [
     { id: 'bag_of_holding', name: "Bag of Holding", type: "tool", rarity: "rare", weight: 0.5, value: 40000, description: "An extradimensional bag that can hold far more than its size suggests." },
     { id: 'elixir_of_life', name: "Elixir of Life", type: "consumable", rarity: "legendary", weight: 0.5, value: 100000, effect: { hp: 100 }, description: "A legendary elixir capable of restoring life to the recently dead." },
     { id: 'sea_chart', name: "Sea Chart", type: "tool", rarity: "common", weight: 0.2, value: 200, description: "A detailed chart of coastal waters and safe navigation routes." },
+    { id: 'anchor_chain', name: "Anchor Chain", type: "crafting", rarity: "common", weight: 8, value: 300, description: "A length of heavy iron chain salvaged from a shipwreck, useful for crafting or repairs." },
+    { id: 'heartstone', name: "Heartstone", type: "material", rarity: "very rare", weight: 0.2, value: 20000, description: "A jet-black gemstone torn from a night hag's possession. It can cure disease when pressed against the afflicted." },
     { id: 'hull_repair_kit', name: "Hull Repair Kit", type: "tool", rarity: "common", weight: 15, value: 500, description: "A bundle of pitch, planks, and resin for quick ship repairs." },
     { id: 'weighted_net', name: "Weighted Net", type: "weapon", rarity: "common", slot: "mainHand", damageRoll: "0", weight: 6, value: 100, description: "A heavy net used to entangle foes or capture sea creatures." },
     { id: 'shipwright_tools', name: "Shipwright's Tools", type: "tool", rarity: "uncommon", weight: 10, value: 1500, description: "A full toolkit for ship construction and repair." },
