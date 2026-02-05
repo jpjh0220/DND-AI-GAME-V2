@@ -200,7 +200,7 @@ export const CombatScreen: React.FC<CombatScreenProps> = ({ player, enemy, onAct
 
                 {/* Custom Action Input */}
                 <div className="flex gap-2">
-                    <input className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none" placeholder="Custom action..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && onAction(input)} disabled={processing}/>
+                    <input className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none" placeholder="Custom action..." value={input} onChange={e => setInput(e.target.value.slice(0, 300))} onKeyDown={e => e.key === 'Enter' && onAction(input)} disabled={processing} maxLength={300}/>
                     <button onClick={() => onAction(input)} disabled={processing||!input.trim()} className="p-3 bg-indigo-600 rounded-xl text-white disabled:opacity-50 hover:bg-indigo-500 transition-colors"><Send size={18}/></button>
                 </div>
             </div>
