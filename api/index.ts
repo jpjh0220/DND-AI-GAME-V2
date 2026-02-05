@@ -82,6 +82,12 @@ ${nearbyLocs.length > 0 ? `Nearby locations (valid travel destinations): ${nearb
 ${currentLoc?.npcs ? `NPCs at this location: ${currentLoc.npcs.map(id => NPCS_DB.find(n => n.id === id)?.name || id).join(', ')}` : 'No NPCs at this location.'}
 ${currentLoc?.shopIds ? `Shops at this location: ${currentLoc.shopIds.map(id => SHOPS_DB.find(s => s.id === id)?.name || id).join(', ')}` : ''}
 Previous events: ${currentFacts.slice(-5).join(", ")}
+${world.consequences && world.consequences.length > 0 ? `
+=== WORLD CONSEQUENCES (player choices that changed the world) ===
+${world.consequences.slice(-5).map(c => `[Day ${c.timestamp.day}] ${c.description} (Impact: ${c.impact})`).join('\n')}` : ''}
+${player.knownNPCs.filter(npc => npc.memories && npc.memories.length > 0).length > 0 ? `
+=== NPC MEMORIES (things NPCs remember about the player) ===
+${player.knownNPCs.filter(npc => npc.memories && npc.memories.length > 0).map(npc => `${npc.name} (Disposition: ${npc.disposition || 0}): ${npc.memories!.slice(-3).join('; ')}`).join('\n')}` : ''}
 
 ${characterState}
 ${memoryContext}
@@ -188,7 +194,10 @@ JSON Schema: {
     "addSpell": {"id": "unique_snake_case_id", "name": "Spell Name", "cost": 5, "damage": 0, "heal": 0, "school": "evocation|necromancy|abjuration|etc", "target": "enemy|ally|self", "description": "what the spell does"},
     "addQuest": {"title": "Quest Title", "description": "What the player needs to do"},
     "completeQuest": "Quest Title (exact match)",
-    "updateQuest": {"title": "Quest Title (exact match)", "description": "Updated description with progress"}
+    "updateQuest": {"title": "Quest Title (exact match)", "description": "Updated description with progress"},
+    "updateNPC": {"id": "npc_id", "dispositionDelta": "number (-10 to +10)", "memory": "what the NPC now remembers about the player"},
+    "addConsequence": {"description": "what changed in the world", "impact": "minor|moderate|major|world-altering", "location": "optional location affected"},
+    "recruitCompanion": {"id": "unique_id", "name": "Companion Name", "class": "Fighter/Rogue/etc", "level": 1, "hp": 20, "ac": 14, "attackBonus": 4, "damageRoll": "1d8+2", "abilities": ["ability1", "ability2"], "loyalty": 50}
   }
 }`;
     }

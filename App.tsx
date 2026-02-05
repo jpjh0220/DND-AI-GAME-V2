@@ -8,7 +8,7 @@ import { RefreshCw, Heart, Zap, Wind, Coins, Map, User, Backpack, Star, Menu, Sh
 
 import { Player, World, LogEntry, Choice, Item, Enemy, SkillCheckDetails, NPC, Achievement, PlayerStats, Recipe, ShopData, Encounter, StatusEffect } from './types';
 import { getFirebaseConfig } from './firebase/index';
-import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost, getProficiencyBonus, resolvePlayerAttack, resolveEnemyDamage, computeGameSnapshot, tickStatusEffects } from './systems/index';
+import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost, getProficiencyBonus, resolvePlayerAttack, resolveEnemyDamage, resolveCompanionAttack, resolveCompanionTakeDamage, computeGameSnapshot, tickStatusEffects, getAvailableEncounterIds, spawnEncounterEnemies, scaleEnemy, calculateEncounterXP, calculateEncounterCurrency, collectEncounterLoot } from './systems/index';
 import { callGeminiAPI, buildPrompt, generateSceneImage, callLLM, loadProviderConfig } from './api/index'; // generateSceneImage kept for portrait generation only
 import type { ProviderConfig } from './api/index';
 import { saveGame as saveGameCloud } from './persistence/cloud';
@@ -53,7 +53,9 @@ export default function App() {
   const [shop, setShop] = useState<{name: string, inventory: Item[]}|null>(null);
   // NEW: State for crafting system
   const [craftingInventory, setCraftingInventory] = useState<{name: string, recipes: Recipe[]}|null>(null);
-  const [enemy, setEnemy] = useState<Enemy | null>(null);
+  const [enemies, setEnemies] = useState<Enemy[]>([]);
+  // Computed: the current target enemy (first alive enemy)
+  const enemy = enemies.find(e => e.hp > 0) || null;
   const [currentSlotId, setCurrentSlotId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [activeSkillCheck, setActiveSkillCheck] = useState<SkillCheckDetails & { dc: number, text: string } | null>(null);
@@ -116,7 +118,7 @@ export default function App() {
     setLog(newGameState.log);
     setChoices(newGameState.choices);
     setView(newGameState.view);
-    setEnemy(newGameState.enemy);
+    setEnemies(newGameState.enemy ? [newGameState.enemy] : (newGameState.enemies || []));
   }, []);
 
   const handleLoadGame = useCallback(async (slotId: string, options?: { auto?: boolean }) => {
@@ -173,7 +175,7 @@ export default function App() {
     setWorld({ day: 1, hour: 8, weather: "Clear", facts: [], eventLog: [] });
     setLog([]);
     setChoices([]);
-    setEnemy(null);
+    setEnemies([]);
     setView('creator');
   };
 
@@ -277,7 +279,7 @@ export default function App() {
       if (fleeRoll >= fleeDC) {
         setProcessing(true);
         const fleeLog = [...log, { type: 'player' as const, text: actionText }, { type: 'narration' as const, text: `You dash away from the ${enemy.name}! (DEX check: ${fleeRoll} vs DC ${fleeDC} - Success!) You escape into the wilds, heart pounding.` }];
-        setEnemy(null); setView('game'); setLog(fleeLog);
+        setEnemies([]); setView('game'); setLog(fleeLog);
         setChoices([{ id: 'explore', label: 'Catch your breath', intent: 'rest' as const, manaCost: 0, staminaCost: 0 }, { id: 'continue', label: 'Keep moving', intent: 'travel' as const, manaCost: 0, staminaCost: 0 }]);
         persistGame(currentSlotId, { player: nextPlayer, world, log: fleeLog, choices: [], view: 'game', enemy: null });
         addToast('Escaped!', 'success');
@@ -294,11 +296,82 @@ export default function App() {
             { id: 'death_load', label: 'Load Last Save', intent: 'system', manaCost: 0, staminaCost: 0 },
             { id: 'death_menu', label: 'Return to Main Menu', intent: 'system', manaCost: 0, staminaCost: 0 },
           ];
-          setEnemy(null); setView('game'); setChoices(deathChoices);
+          setEnemies([]); setView('game'); setChoices(deathChoices);
           addToast('You have died.', 'danger');
         }
         setProcessing(false);
         return;
+      }
+    }
+
+    // Combat Item Use: "I use my [item]" - apply effects immediately
+    if (enemy && actionText.toLowerCase().includes('use my ')) {
+      const itemMatch = actionText.match(/use my\s+(.+)/i);
+      if (itemMatch) {
+        const itemName = itemMatch[1].replace(/[.!?]$/, '').trim().toLowerCase();
+        const itemIndex = nextPlayer.inventory.findIndex(i =>
+          i.name.toLowerCase() === itemName ||
+          i.name.toLowerCase().includes(itemName) ||
+          itemName.includes(i.name.toLowerCase())
+        );
+
+        if (itemIndex >= 0) {
+          const item = nextPlayer.inventory[itemIndex];
+          const isConsumable = item.type === 'potion' || item.type === 'consumable' || item.effect;
+
+          if (isConsumable && item.effect) {
+            // Apply item effects
+            if (item.effect.hp) {
+              const oldHp = nextPlayer.hpCurrent;
+              nextPlayer.hpCurrent = Math.min(nextPlayer.hpMax, nextPlayer.hpCurrent + item.effect.hp);
+              addToast(`+${nextPlayer.hpCurrent - oldHp} HP from ${item.name}`, 'success');
+            }
+            if (item.effect.mp) {
+              nextPlayer.manaCurrent = Math.min(nextPlayer.manaMax, nextPlayer.manaCurrent + item.effect.mp);
+              addToast(`+${item.effect.mp} MP from ${item.name}`, 'success');
+            }
+            if (item.effect.st) {
+              nextPlayer.staminaCurrent = Math.min(nextPlayer.staminaMax, nextPlayer.staminaCurrent + item.effect.st);
+              addToast(`+${item.effect.st} ST from ${item.name}`, 'success');
+            }
+
+            // Remove consumed item
+            nextPlayer.inventory.splice(itemIndex, 1);
+
+            // Don't return - continue to AI for narration, but effects are already applied
+          }
+        }
+      }
+    }
+
+    // Combat Spell Casting: "I cast [spell]" - deduct mana, apply damage/healing
+    if (enemy && actionText.toLowerCase().includes('cast ')) {
+      const spellMatch = actionText.match(/cast\s+(.+?)(?:\s+(?:upon|on|at)\s+|$)/i);
+      if (spellMatch) {
+        const spellName = spellMatch[1].replace(/[.!?]$/, '').trim().toLowerCase();
+        const spell = nextPlayer.spells.find(s => s.name.toLowerCase() === spellName);
+
+        if (spell) {
+          if (nextPlayer.manaCurrent < spell.cost) {
+            addToast(`Not enough mana for ${spell.name}! (${spell.cost} MP required)`, 'danger');
+            setProcessing(false);
+            return;
+          }
+
+          // Deduct mana cost
+          nextPlayer.manaCurrent -= spell.cost;
+          addToast(`-${spell.cost} MP (${spell.name})`, 'info');
+
+          // Apply healing spells immediately (self-target)
+          if (spell.target === 'self' && spell.heal) {
+            const oldHp = nextPlayer.hpCurrent;
+            nextPlayer.hpCurrent = Math.min(nextPlayer.hpMax, nextPlayer.hpCurrent + spell.heal);
+            addToast(`+${nextPlayer.hpCurrent - oldHp} HP from ${spell.name}`, 'success');
+          }
+
+          // Note: Damage spells are handled by the AI patch (playerAttackHitsEnemy)
+          // The damage from spell.damage could be used to inform the AI or override
+        }
       }
     }
 
@@ -494,75 +567,233 @@ export default function App() {
           }
       }
 
+      // NPC disposition and memory updates
+      if (p.updateNPC?.id) {
+          const npcIndex = nextPlayer.knownNPCs.findIndex(n => n.id === p.updateNPC.id);
+          if (npcIndex >= 0) {
+              const npc = { ...nextPlayer.knownNPCs[npcIndex] };
+              // Update disposition
+              if (p.updateNPC.dispositionDelta) {
+                  npc.disposition = Math.max(-100, Math.min(100, (npc.disposition || 0) + p.updateNPC.dispositionDelta));
+                  const feeling = npc.disposition >= 50 ? 'friendly' : npc.disposition >= 20 ? 'warm' : npc.disposition >= -20 ? 'neutral' : npc.disposition >= -50 ? 'cold' : 'hostile';
+                  addToast(`${npc.name} feels ${feeling} toward you`, npc.disposition >= 0 ? 'info' : 'danger');
+              }
+              // Add memory
+              if (p.updateNPC.memory) {
+                  npc.memories = npc.memories || [];
+                  npc.memories.push(p.updateNPC.memory);
+                  // Keep only last 10 memories per NPC
+                  if (npc.memories.length > 10) npc.memories = npc.memories.slice(-10);
+              }
+              nextPlayer.knownNPCs[npcIndex] = npc;
+          }
+      }
+
+      // World consequences - player choices that change the world
+      if (p.addConsequence?.description) {
+          nextWorld.consequences = nextWorld.consequences || [];
+          nextWorld.consequences.push({
+              id: `consequence_${Date.now()}`,
+              description: p.addConsequence.description,
+              location: p.addConsequence.location || getCurrentLocation(nextWorld.facts),
+              timestamp: { day: nextWorld.day, hour: nextWorld.hour },
+              impact: p.addConsequence.impact || 'minor',
+          });
+          // Log major+ consequences
+          if (p.addConsequence.impact === 'major' || p.addConsequence.impact === 'world-altering') {
+              finalLog.push({ type: 'worldevent', text: `WORLD CHANGED: ${p.addConsequence.description}` });
+              addToast(`Your choice has changed the world!`, 'success');
+          }
+      }
+
+      // Companion recruitment - NPC joins the player's party
+      if (p.recruitCompanion?.name) {
+          nextPlayer.companions = nextPlayer.companions || [];
+          // Check if already in party
+          const existingIdx = nextPlayer.companions.findIndex(c => c.id === p.recruitCompanion.id);
+          if (existingIdx < 0 && nextPlayer.companions.filter(c => c.isActive).length < 4) {
+              const newCompanion = {
+                  id: p.recruitCompanion.id || `companion_${Date.now()}`,
+                  name: p.recruitCompanion.name,
+                  class: p.recruitCompanion.class || 'Ally',
+                  level: p.recruitCompanion.level || 1,
+                  hp: p.recruitCompanion.hp || 20,
+                  hpMax: p.recruitCompanion.hp || 20,
+                  ac: p.recruitCompanion.ac || 12,
+                  attackBonus: p.recruitCompanion.attackBonus || 3,
+                  damageRoll: p.recruitCompanion.damageRoll || '1d6+1',
+                  abilities: p.recruitCompanion.abilities || [],
+                  loyalty: p.recruitCompanion.loyalty || 50,
+                  isActive: true,
+                  portrait: null,
+              };
+              nextPlayer.companions.push(newCompanion);
+              finalLog.push({ type: 'milestone', text: `${newCompanion.name} has joined your party!` });
+              addToast(`${newCompanion.name} joins the party!`, 'success');
+          } else if (existingIdx >= 0) {
+              // Reactivate existing companion
+              nextPlayer.companions[existingIdx].isActive = true;
+              addToast(`${p.recruitCompanion.name} rejoins your party!`, 'success');
+          } else {
+              addToast('Your party is full (max 4 companions)', 'danger');
+          }
+      }
+
       let currentEnemy = enemy;
+      let currentEnemies = [...enemies]; // Track all enemies in encounter
+
       // NEW: Handle starting a combat encounter based on AI patch
       if (p.startEncounter?.id) {
           const encounterData = ENCOUNTERS_DB.find(e => e.id === p.startEncounter.id);
           if (encounterData && encounterData.type === 'combat' && encounterData.enemyIds && encounterData.enemyIds.length > 0) {
-              // For simplicity, pick the first enemy in the list as the primary one for the current combat UI
-              const enemyId = encounterData.enemyIds[0];
-              const enemyDetails = ENEMIES_DB.find(e => e.id === enemyId);
-              if (enemyDetails) {
-                  currentEnemy = { ...enemyDetails, hpMax: enemyDetails.hp };
-                  setEnemy(currentEnemy); 
+              // Spawn all enemies from encounter, scaled to player level
+              const spawnedEnemies = spawnEncounterEnemies(encounterData, nextPlayer.level);
+              if (spawnedEnemies.length > 0) {
+                  currentEnemies = spawnedEnemies;
+                  currentEnemy = currentEnemies[0];
+                  setEnemies(currentEnemies);
                   setView('combat');
-                  finalLog.push({ type: 'worldevent', text: `You are ambushed by a ${currentEnemy.name}!` });
+                  const enemyNames = spawnedEnemies.map(e => e.name).join(', ');
+                  finalLog.push({ type: 'worldevent', text: `You are ambushed by ${spawnedEnemies.length > 1 ? `${spawnedEnemies.length} foes: ${enemyNames}` : `a ${currentEnemy.name}`}!` });
               }
           }
       } else if (p.startCombat) {
-        currentEnemy = { ...p.startCombat, hpMax: p.startCombat.hp };
-        setEnemy(currentEnemy); setView('combat');
-      } else if (currentEnemy) {
+        // AI-initiated combat with single enemy
+        const scaledEnemy = scaleEnemy({ ...p.startCombat, hpMax: p.startCombat.hp }, nextPlayer.level);
+        currentEnemies = [scaledEnemy];
+        currentEnemy = scaledEnemy;
+        setEnemies(currentEnemies); setView('combat');
+      } else if (currentEnemy && currentEnemies.length > 0) {
+        // Player attacks current target
         if (p.playerAttackHitsEnemy) {
-          const { damage, details } = resolvePlayerAttack(nextPlayer, currentEnemy);
+          const { damage } = resolvePlayerAttack(nextPlayer, currentEnemy);
           currentEnemy.hp = Math.max(0, currentEnemy.hp - damage);
+          // Update enemy in array
+          currentEnemies = currentEnemies.map(e => e.id === currentEnemy!.id ? currentEnemy! : e);
         }
+
+        // Companion attacks (active companions assist in combat)
+        const activeCompanions = nextPlayer.companions?.filter(c => c.isActive && c.hp > 0) || [];
+        if (activeCompanions.length > 0 && p.playerAttackHitsEnemy) {
+          for (const companion of activeCompanions) {
+            // Find an alive enemy to attack (prioritize current target, then others)
+            const targetEnemy = currentEnemies.find(e => e.hp > 0);
+            if (targetEnemy) {
+              const { hit, damage, details } = resolveCompanionAttack(companion, targetEnemy);
+              if (hit) {
+                targetEnemy.hp = Math.max(0, targetEnemy.hp - damage);
+                currentEnemies = currentEnemies.map(e => e.id === targetEnemy.id ? targetEnemy : e);
+                addToast(`${companion.name}: ${damage} dmg!`, 'success');
+              }
+            }
+          }
+        }
+
+        // ALL alive enemies attack the player and companions (multi-enemy combat)
         if (p.enemyAttackHitsPlayer) {
-          const { damage, details } = resolveEnemyDamage(nextPlayer, currentEnemy);
-          nextPlayer.hpCurrent = Math.max(0, nextPlayer.hpCurrent - damage);
+          const aliveEnemies = currentEnemies.filter(e => e.hp > 0);
+          const aliveCompanions = nextPlayer.companions?.filter(c => c.isActive && c.hp > 0) || [];
+          let totalDamageTaken = 0;
+          const attackers: string[] = [];
+          const companionDamage: { name: string; damage: number; knocked: boolean }[] = [];
+
+          for (const attacker of aliveEnemies) {
+            // Each enemy has diminishing hit chance in groups to prevent instant death
+            const hitChance = aliveEnemies.length > 1 ? 0.6 : 1.0;
+            if (Math.random() < hitChance) {
+              const { damage } = resolveEnemyDamage(nextPlayer, attacker);
+
+              // 30% chance to target a companion if companions are present
+              if (aliveCompanions.length > 0 && Math.random() < 0.3) {
+                const targetIdx = Math.floor(Math.random() * aliveCompanions.length);
+                const targetCompanion = aliveCompanions[targetIdx];
+                const { newHp, knocked } = resolveCompanionTakeDamage(targetCompanion, damage);
+                targetCompanion.hp = newHp;
+                companionDamage.push({ name: targetCompanion.name, damage, knocked });
+                if (knocked) {
+                  // Remove knocked out companion from active list
+                  aliveCompanions.splice(targetIdx, 1);
+                }
+              } else {
+                totalDamageTaken += damage;
+                attackers.push(attacker.name);
+              }
+            }
+          }
+
+          // Apply damage to player
+          nextPlayer.hpCurrent = Math.max(0, nextPlayer.hpCurrent - totalDamageTaken);
+          if (attackers.length > 1) {
+            addToast(`${attackers.join(', ')} strike! -${totalDamageTaken} HP`, 'danger');
+          }
+
+          // Report companion damage
+          for (const cd of companionDamage) {
+            if (cd.knocked) {
+              addToast(`${cd.name} is knocked out!`, 'danger');
+              finalLog.push({ type: 'worldevent', text: `${cd.name} falls unconscious from the blow!` });
+            } else {
+              addToast(`${cd.name} hit for ${cd.damage}!`, 'danger');
+            }
+          }
         }
+
         // Player dies in combat
         if (nextPlayer.hpCurrent <= 0) {
           nextPlayer.hpCurrent = 0;
-          finalLog.push({ type: 'worldevent', text: `${currentEnemy.name} strikes a fatal blow. ${nextPlayer.name} has fallen in battle...` });
+          const killerName = currentEnemies.filter(e => e.hp > 0).map(e => e.name).join(' and ') || currentEnemy.name;
+          finalLog.push({ type: 'worldevent', text: `${killerName} strikes a fatal blow. ${nextPlayer.name} has fallen in battle...` });
           const deathChoices: Choice[] = [
             { id: 'death_load', label: 'Load Last Save', intent: 'system', manaCost: 0, staminaCost: 0 },
             { id: 'death_menu', label: 'Return to Main Menu', intent: 'system', manaCost: 0, staminaCost: 0 },
           ];
-          setEnemy(null); setView('game');
+          setEnemies([]); setView('game');
           setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices(deathChoices);
           persistGame(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: deathChoices, view: 'game', enemy: null });
           addToast('You have died.', 'danger');
           setProcessing(false);
           return;
         }
-        if (p.endCombat || currentEnemy.hp <= 0) {
-          if (currentEnemy.hp <= 0) {
-            finalLog.push({ type: 'milestone', text: `${currentEnemy.name} slain.` });
-            // Award XP from enemy data
-            if (currentEnemy.xp && currentEnemy.xp > 0 && (!p.xpDelta || p.xpDelta === 0)) {
-              nextPlayer.xp += currentEnemy.xp;
-              addToast(`+${currentEnemy.xp} XP`, 'success');
-            }
-            // Drop loot from enemy data
-            if (currentEnemy.loot && currentEnemy.loot.length > 0) {
-              for (const lootId of currentEnemy.loot) {
-                const lootItem = ITEMS_DB.find(i => i.id === lootId);
-                if (lootItem) {
-                  nextPlayer.inventory.push({ ...lootItem });
-                  addToast(`Loot: ${lootItem.name}`, 'success');
-                  finalLog.push({ type: 'milestone', text: `LOOT: ${lootItem.name}` });
-                }
+
+        // Check if current target died
+        if (currentEnemy.hp <= 0) {
+          finalLog.push({ type: 'milestone', text: `${currentEnemy.name} slain.` });
+          // Award XP from this enemy
+          if (currentEnemy.xp && currentEnemy.xp > 0) {
+            nextPlayer.xp += currentEnemy.xp;
+            addToast(`+${currentEnemy.xp} XP`, 'success');
+          }
+          // Drop loot from this enemy
+          if (currentEnemy.loot && currentEnemy.loot.length > 0) {
+            for (const lootId of currentEnemy.loot) {
+              const lootItem = ITEMS_DB.find(i => i.id === lootId);
+              if (lootItem) {
+                nextPlayer.inventory.push({ ...lootItem });
+                addToast(`Loot: ${lootItem.name}`, 'success');
+                finalLog.push({ type: 'milestone', text: `LOOT: ${lootItem.name}` });
               }
             }
-            // Award currency based on enemy challenge rating
-            const challengeGold = Math.floor((currentEnemy.challenge || 1) * 50);
-            if (challengeGold > 0) {
-              nextPlayer.currency += challengeGold;
-              addToast(`+${challengeGold} copper`, 'info');
-            }
           }
-          setEnemy(null); currentEnemy = null; setView('game');
+          // Award currency for this enemy
+          const challengeGold = Math.floor((currentEnemy.challenge || 1) * 50);
+          if (challengeGold > 0) {
+            nextPlayer.currency += challengeGold;
+            addToast(`+${challengeGold} copper`, 'info');
+          }
+        }
+
+        // Check if ALL enemies are dead (combat ends)
+        const allDead = currentEnemies.every(e => e.hp <= 0);
+        if (p.endCombat || allDead) {
+          if (allDead && currentEnemies.length > 1) {
+            finalLog.push({ type: 'worldevent', text: `All foes vanquished! The battle is won.` });
+          }
+          setEnemies([]); currentEnemy = null; setView('game');
+        } else {
+          // Update enemies state with current HP values
+          setEnemies(currentEnemies);
+          // Switch target to next alive enemy
+          currentEnemy = currentEnemies.find(e => e.hp > 0) || null;
         }
       }
 
@@ -1009,7 +1240,7 @@ export default function App() {
       <div className="flex-1 overflow-hidden relative">
         {(() => {
             switch (view) {
-                case 'combat': return enemy ? <CombatScreen player={player!} enemy={enemy} onAction={executeTurn} log={log} scrollRef={scrollRef} processing={processing} input={input} setInput={setInput} /> : <GameView {...gameViewProps} />;
+                case 'combat': return enemy ? <CombatScreen player={player!} enemy={enemy} enemies={enemies} onAction={executeTurn} log={log} scrollRef={scrollRef} processing={processing} input={input} setInput={setInput} /> : <GameView {...gameViewProps} />;
                 case 'game': return <GameView {...gameViewProps} />;
                 case 'sheet': return <CharacterSheet player={player!} onClose={() => setView('game')} onGeneratePortrait={handleGeneratePortrait} />;
                 case 'inventory': return <InventoryScreen player={player!} onClose={() => setView('game')} onUseItem={handleUseItem} onEquip={handleEquip} />;

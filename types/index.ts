@@ -11,16 +11,34 @@ export interface PlayerStats { str: number; dex: number; con: number; int: numbe
 export interface Item { id?: string; name: string; type: string; rarity?: string; value?: number; weight?: number; effect?: { [key: string]: number }; slot?: string; damageRoll?: string; ac?: number; power?: number; twoHanded?: boolean; statsBonus?: Partial<PlayerStats>; description?: string; }
 export interface Spell { id: string; name: string; cost: number; damage?: number; heal?: number; buff?: string; duration?: number; school: string; target: 'enemy' | 'ally' | 'self'; description?: string; }
 export interface Quest { title: string; description: string; status: 'active' | 'completed'; }
-export interface NPC { 
-  id: string; 
-  name: string; 
-  role: string; 
-  location: string; 
-  portrait?: string | null; 
-  description?: string; // New
-  questGiver?: boolean; // New
-  shopkeeper?: boolean; // New
-  factionAffiliation?: string; // New
+export interface NPC {
+  id: string;
+  name: string;
+  role: string;
+  location: string;
+  portrait?: string | null;
+  description?: string;
+  questGiver?: boolean;
+  shopkeeper?: boolean;
+  factionAffiliation?: string;
+  disposition?: number; // -100 (hostile) to 100 (ally), default 0 (neutral)
+  memories?: string[]; // Things this NPC remembers about the player
+}
+
+export interface Companion {
+  id: string;
+  name: string;
+  class?: string;
+  level: number;
+  hp: number;
+  hpMax: number;
+  ac: number;
+  attackBonus: number;
+  damageRoll: string;
+  portrait?: string | null;
+  abilities?: string[];
+  isActive: boolean; // Currently in party
+  loyalty: number; // 0-100, affects combat behavior
 }
 
 export interface Enemy { 
@@ -182,13 +200,31 @@ export interface Player {
   concept: string; 
   proficiencies: { skills: string[]; savingThrows: string[]; }; 
   personality: { traits: string; ideals: string; bonds: string; flaws: string; }; 
-  portrait?: string | null; 
-  activeNPC?: NPC | null; 
-  feats: string[]; 
-  statusEffects: StatusEffect[]; // New: Active status conditions
+  portrait?: string | null;
+  activeNPC?: NPC | null;
+  feats: string[];
+  statusEffects: StatusEffect[];
+  companions?: Companion[]; // Party members that fight alongside player
 }
 
-export interface World { day: number; hour: number; weather: string; facts: string[]; eventLog: any[]; }
+export interface WorldConsequence {
+  id: string;
+  description: string;
+  location?: string;
+  timestamp: { day: number; hour: number };
+  impact: 'minor' | 'moderate' | 'major' | 'world-altering';
+  affectedNPCs?: string[]; // NPC IDs
+  affectedFactions?: string[]; // Faction IDs
+}
+
+export interface World {
+  day: number;
+  hour: number;
+  weather: string;
+  facts: string[];
+  eventLog: any[];
+  consequences?: WorldConsequence[]; // Player choices that changed the world
+}
 // FIX: Add 'text: string' to SkillCheckDetails
 export interface SkillCheckDetails { skill: string; roll: number; bonus: number; total: number; dc: number; success: boolean; text: string; }
 // FIX: Add 'discovery' to Choice intent type

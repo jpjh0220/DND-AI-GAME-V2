@@ -13,6 +13,7 @@ export interface GameState {
   choices: Choice[];
   view: string;
   enemy: Enemy | null;
+  enemies?: Enemy[]; // Multi-enemy combat support
 }
 
 export interface SaveSlotSummary {

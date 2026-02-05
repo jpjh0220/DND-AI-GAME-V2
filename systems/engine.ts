@@ -15,7 +15,7 @@
  * rather than computing things ad-hoc.
  */
 
-import { Player, PlayerStats, Item, Enemy, StatusEffect } from '../types';
+import { Player, PlayerStats, Item, Enemy, StatusEffect, Companion } from '../types';
 import { getMod, calculateEncumbrance, calculateMaxCarry, getProficiencyBonus, parseDamageRoll, getSpellcastingAbility } from './calculations';
 import { ALL_SKILLS } from './constants';
 import { FEATS_DB } from '../registries/feats';
@@ -629,6 +629,50 @@ export function resolveEnemyDamage(player: Player, enemy: Enemy): { damage: numb
     // Status effect resistances would apply here in a more complex system
 
     return { damage: Math.max(0, damage), details: `${enemy.name} deals ${damage} damage` };
+}
+
+// ============================================================
+// Companion combat resolution
+// ============================================================
+
+export function resolveCompanionAttack(companion: Companion, enemy: Enemy): { hit: boolean; damage: number; details: string } {
+    // Roll to hit (d20 + attack bonus vs enemy AC)
+    const roll = Math.floor(Math.random() * 20) + 1;
+    const totalAttack = roll + companion.attackBonus;
+    const hit = totalAttack >= enemy.ac || roll === 20; // Nat 20 always hits
+
+    if (!hit) {
+        return { hit: false, damage: 0, details: `${companion.name} misses ${enemy.name}` };
+    }
+
+    // Roll damage
+    let damage = parseDamageRoll(companion.damageRoll);
+
+    // Critical hit (nat 20) - double dice
+    if (roll === 20) {
+        damage = Math.floor(damage * 1.5);
+    }
+
+    // Loyalty affects damage (low loyalty = less effective)
+    if (companion.loyalty < 30) {
+        damage = Math.floor(damage * 0.5);
+    } else if (companion.loyalty < 50) {
+        damage = Math.floor(damage * 0.75);
+    }
+
+    return {
+        hit: true,
+        damage: Math.max(1, damage),
+        details: `${companion.name} hits ${enemy.name} for ${damage} damage${roll === 20 ? ' (Critical!)' : ''}`
+    };
+}
+
+export function resolveCompanionTakeDamage(companion: Companion, damage: number): { newHp: number; knocked: boolean } {
+    const newHp = Math.max(0, companion.hp - damage);
+    return {
+        newHp,
+        knocked: newHp <= 0
+    };
 }
 
 // ============================================================
