@@ -594,6 +594,20 @@ export function resolvePlayerAttack(player: Player, enemy: Enemy): { damage: num
         }
     }
 
+    // Great Weapon Master: +10 damage with heavy/two-handed weapons
+    if (player.feats.includes('great_weapon_master') && weapon) {
+        const wType = (weapon.type || '').toLowerCase();
+        const wName = (weapon.name || '').toLowerCase();
+        if (wType.includes('heavy') || wType.includes('two-handed') || wName.includes('great') || wName.includes('maul') || wName.includes('halberd') || wName.includes('pike')) {
+            baseDamage += 10;
+        }
+    }
+
+    // Sharpshooter: +10 damage with ranged weapons
+    if (player.feats.includes('sharpshooter') && isRanged) {
+        baseDamage += 10;
+    }
+
     // Exhaustion level 3+: disadvantage on attacks (reduce by ~25%)
     if (player.exhaustion >= 3) {
         baseDamage = Math.max(1, Math.floor(baseDamage * 0.75));

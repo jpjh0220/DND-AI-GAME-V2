@@ -29,10 +29,15 @@ const normalizeCurrencyDelta = (delta: number, context: string) => {
   const mentionsSilver = /\b(silver|sp)\b/.test(lowerContext);
   const mentionsCopper = /\b(copper|cp)\b/.test(lowerContext);
 
-  if (mentionsGold && absDelta < 10000) return delta * 10000;
-  if (mentionsSilver && absDelta < 100) return delta * 100;
-  if (mentionsCopper) return delta;
-  return delta;
+  let result = delta;
+  if (mentionsGold && absDelta < 10000) result = delta * 10000;
+  else if (mentionsSilver && absDelta < 100) result = delta * 100;
+  else if (mentionsCopper) result = delta;
+
+  // Cap: gains max 500k copper (50 gold), losses max 200k copper (20 gold) per action
+  const maxGain = 500000;
+  const maxLoss = -200000;
+  return Math.max(maxLoss, Math.min(maxGain, result));
 };
 
 export default function App() {
@@ -264,6 +269,39 @@ export default function App() {
       if (sCost > 0) addToast(`-${sCost} ST`, isEncumbered ? 'danger' : 'info');
     }
 
+    // Flee mechanic: DEX check when player tries to flee during combat
+    if (enemy && actionText.toLowerCase().includes('flee')) {
+      const dexMod = getMod(nextPlayer.stats.dex);
+      const fleeRoll = Math.floor(Math.random() * 20) + 1 + dexMod;
+      const fleeDC = Math.max(8, (enemy.speed || 30) >= 40 ? 15 : 10);
+      if (fleeRoll >= fleeDC) {
+        setProcessing(true);
+        const fleeLog = [...log, { type: 'player' as const, text: actionText }, { type: 'narration' as const, text: `You dash away from the ${enemy.name}! (DEX check: ${fleeRoll} vs DC ${fleeDC} - Success!) You escape into the wilds, heart pounding.` }];
+        setEnemy(null); setView('game'); setLog(fleeLog);
+        setChoices([{ id: 'explore', label: 'Catch your breath', intent: 'rest' as const, manaCost: 0, staminaCost: 0 }, { id: 'continue', label: 'Keep moving', intent: 'travel' as const, manaCost: 0, staminaCost: 0 }]);
+        persistGame(currentSlotId, { player: nextPlayer, world, log: fleeLog, choices: [], view: 'game', enemy: null });
+        addToast('Escaped!', 'success');
+        setPlayer(nextPlayer); setProcessing(false);
+        return;
+      } else {
+        // Failed flee: enemy gets a free attack
+        const { damage } = resolveEnemyDamage(nextPlayer, enemy);
+        nextPlayer.hpCurrent = Math.max(0, nextPlayer.hpCurrent - damage);
+        const fleeFailLog = [...log, { type: 'player' as const, text: actionText }, { type: 'narration' as const, text: `You try to flee but the ${enemy.name} blocks your escape! (DEX check: ${fleeRoll} vs DC ${fleeDC} - Failed!) The ${enemy.name} strikes you as you turn. (-${damage} HP)` }];
+        setLog(fleeFailLog); setPlayer(nextPlayer);
+        if (nextPlayer.hpCurrent <= 0) {
+          const deathChoices: Choice[] = [
+            { id: 'death_load', label: 'Load Last Save', intent: 'system', manaCost: 0, staminaCost: 0 },
+            { id: 'death_menu', label: 'Return to Main Menu', intent: 'system', manaCost: 0, staminaCost: 0 },
+          ];
+          setEnemy(null); setView('game'); setChoices(deathChoices);
+          addToast('You have died.', 'danger');
+        }
+        setProcessing(false);
+        return;
+      }
+    }
+
     // Determine if world event should be triggered - now also for encounters
     const currentLocationFacts = getCurrentLocation(nextWorld.facts);
     const currentLocData = LOCATIONS_DB.find(loc => loc.name === currentLocationFacts);
@@ -482,6 +520,21 @@ export default function App() {
         if (p.enemyAttackHitsPlayer) {
           const { damage, details } = resolveEnemyDamage(nextPlayer, currentEnemy);
           nextPlayer.hpCurrent = Math.max(0, nextPlayer.hpCurrent - damage);
+        }
+        // Player dies in combat
+        if (nextPlayer.hpCurrent <= 0) {
+          nextPlayer.hpCurrent = 0;
+          finalLog.push({ type: 'worldevent', text: `${currentEnemy.name} strikes a fatal blow. ${nextPlayer.name} has fallen in battle...` });
+          const deathChoices: Choice[] = [
+            { id: 'death_load', label: 'Load Last Save', intent: 'system', manaCost: 0, staminaCost: 0 },
+            { id: 'death_menu', label: 'Return to Main Menu', intent: 'system', manaCost: 0, staminaCost: 0 },
+          ];
+          setEnemy(null); setView('game');
+          setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices(deathChoices);
+          persistGame(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: deathChoices, view: 'game', enemy: null });
+          addToast('You have died.', 'danger');
+          setProcessing(false);
+          return;
         }
         if (p.endCombat || currentEnemy.hp <= 0) {
           if (currentEnemy.hp <= 0) {

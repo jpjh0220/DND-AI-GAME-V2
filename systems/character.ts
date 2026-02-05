@@ -168,12 +168,22 @@ export const handleLevelUp = (player: Player): { player: Player, messages: strin
     }
     
     nextPlayer.hpMax += Math.max(1, hpGain);
-    
+
+    // Scale mana and stamina on level up
+    const intMod = getMod(nextPlayer.stats.int);
+    const wisMod = getMod(nextPlayer.stats.wis);
+    const manaGain = Math.max(1, 2 + Math.max(intMod, wisMod));
+    nextPlayer.manaMax += manaGain;
+
+    const conModSt = getMod(nextPlayer.stats.con);
+    const staminaGain = Math.max(1, 2 + conModSt);
+    nextPlayer.staminaMax += staminaGain;
+
     nextPlayer.hpCurrent = nextPlayer.hpMax;
     nextPlayer.manaCurrent = nextPlayer.manaMax;
     nextPlayer.staminaCurrent = nextPlayer.staminaMax;
 
-    messages.push(`LEVEL UP! You are now Level ${nextPlayer.level}! You feel stronger. (HP +${hpGain})`);
+    messages.push(`LEVEL UP! You are now Level ${nextPlayer.level}! (HP +${hpGain}, MP +${manaGain}, ST +${staminaGain})`);
 
     return { player: nextPlayer, messages };
 };
