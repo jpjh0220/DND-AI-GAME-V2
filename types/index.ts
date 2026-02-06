@@ -152,6 +152,24 @@ export interface RumorEntry {
   detail: string;
 }
 
+export interface Companion {
+  id: string;
+  name: string;
+  race: string;
+  class: string;
+  level: number;
+  hpMax: number;
+  hpCurrent: number;
+  ac: number;
+  damageRoll: string;
+  stats: PlayerStats;
+  personality: string;
+  loyalty: number;
+  portrait?: string | null;
+  abilities: string[];
+  status: 'active' | 'unconscious' | 'dismissed';
+}
+
 
 export interface Player { 
   name: string; 
@@ -184,8 +202,12 @@ export interface Player {
   personality: { traits: string; ideals: string; bonds: string; flaws: string; }; 
   portrait?: string | null; 
   activeNPC?: NPC | null; 
-  feats: string[]; 
-  statusEffects: StatusEffect[]; // New: Active status conditions
+  feats: string[];
+  statusEffects: StatusEffect[];
+  companions: Companion[];
+  discoveredLocations: string[];
+  killCount: number;
+  totalDamageDealt: number;
 }
 
 export interface World { day: number; hour: number; weather: string; facts: string[]; eventLog: any[]; }

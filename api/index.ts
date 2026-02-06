@@ -3,7 +3,7 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { Player, World, Enemy, Item } from '../types';
 import { calculateEncumbrance, calculateMaxCarry } from '../systems/calculations';
-import { ITEMS_DB, LOCATIONS_DB, ENEMIES_DB, ACHIEVEMENTS_DB, NPCS_DB, SHOPS_DB, ENCOUNTERS_DB, SPELLS_DB } from '../registries/index';
+import { ITEMS_DB, LOCATIONS_DB, ENEMIES_DB, ACHIEVEMENTS_DB, NPCS_DB, SHOPS_DB, ENCOUNTERS_DB, SPELLS_DB, RUMORS_DB } from '../registries/index';
 import { RetrievedMemory, formatRetrievedMemories } from '../systems/memory';
 import { GMMode, determineGMMode, getSystemPrompt } from '../systems/prompts';
 import { computeGameSnapshot, formatSnapshotForPrompt, GameSnapshot } from '../systems/engine';
@@ -90,6 +90,14 @@ ${player.quests.filter(q => q.status === 'active').map(q => `- ${q.title}: ${q.d
 ${player.quests.filter(q => q.status === 'completed').length > 0 ? `Completed: ${player.quests.filter(q => q.status === 'completed').map(q => q.title).join(', ')}` : ''}
 QUEST RULES: When the player completes a quest objective, use "completeQuest" in the patch. When an NPC gives the player a task, use "addQuest". When partial progress is made, use "updateQuest" to update the description. Do NOT re-add quests that already exist.` : 'The player has NO active quests. When NPCs interact with the player, consider offering quests via "addQuest" in the patch when it makes narrative sense.'}
 
+${(player.companions || []).filter(c => c.status === 'active').length > 0 ? `=== ACTIVE COMPANIONS ===
+${(player.companions || []).filter(c => c.status === 'active').map(c => `- ${c.name} (${c.race} ${c.class} Lv${c.level}) HP: ${c.hpCurrent}/${c.hpMax}, AC: ${c.ac}, Dmg: ${c.damageRoll}. ${c.personality}`).join('\n')}
+COMPANION RULES: Companions fight alongside the player in combat. They can take actions, speak, and react. If a companion's HP reaches 0, they fall unconscious. Narrate their participation in combat and social scenes.` : ''}
+
+${currentLoc?.type === 'town' || currentLoc?.type === 'settlement' ? `=== LOCAL RUMORS ===
+${RUMORS_DB.slice(0, 3).map(r => `- [${r.tone}] ${r.detail} (source: ${r.source})`).join('\n')}
+When the player visits a tavern, inn, or talks to locals, weave these rumors naturally into dialogue.` : ''}
+
 Player Action: "${actionText}"
 `;
 
@@ -124,6 +132,7 @@ Player weapon: ${snapshot.weapon ? `${snapshot.weapon.name} (${snapshot.weapon.d
 Player AC: ${snapshot.combat.ac} | Attack bonus: +${snapshot.combat.attackBonus}
 ${snapshot.activeFeats.length > 0 ? `Combat-relevant feats: ${snapshot.activeFeats.map(f => `${f.name}: ${f.mechanical}`).join('; ')}` : ''}
 ${snapshot.conditions.exhaustionLevel >= 3 ? 'WARNING: Player has disadvantage on attacks (Exhaustion 3+)' : ''}
+${(player.companions || []).filter(c => c.status === 'active').length > 0 ? `\nACTIVE COMPANIONS IN COMBAT:\n${(player.companions || []).filter(c => c.status === 'active').map(c => `- ${c.name} (${c.race} ${c.class}) HP: ${c.hpCurrent}/${c.hpMax}, AC: ${c.ac}, Dmg: ${c.damageRoll}`).join('\n')}\nCompanions attack automatically. Narrate their actions alongside the player.` : ''}
 
 Instructions:
 1. This is the player's turn. Narrate what happens based on their action.
@@ -149,7 +158,9 @@ JSON Schema: {
     "addSpell": {"id": "unique_snake_case_id", "name": "Spell Name", "cost": 5, "damage": 0, "heal": 0, "school": "evocation|necromancy|abjuration|etc", "target": "enemy|ally|self", "description": "what the spell does"},
     "addQuest": {"title": "Quest Title", "description": "What needs to be done"},
     "completeQuest": "Quest Title (exact match)",
-    "updateQuest": {"title": "Quest Title (exact match)", "description": "Updated description with progress"}
+    "updateQuest": {"title": "Quest Title (exact match)", "description": "Updated description with progress"},
+    "addCompanion": {"id": "unique_id", "name": "Name", "race": "Race", "class": "Class", "level": 1, "hpMax": 25, "ac": 14, "damageRoll": "1d8+3", "personality": "Brief personality", "abilities": ["ability1"]},
+    "removeCompanion": "companion_id"
   }
 }`;
     } else {
@@ -188,7 +199,9 @@ JSON Schema: {
     "addSpell": {"id": "unique_snake_case_id", "name": "Spell Name", "cost": 5, "damage": 0, "heal": 0, "school": "evocation|necromancy|abjuration|etc", "target": "enemy|ally|self", "description": "what the spell does"},
     "addQuest": {"title": "Quest Title", "description": "What the player needs to do"},
     "completeQuest": "Quest Title (exact match)",
-    "updateQuest": {"title": "Quest Title (exact match)", "description": "Updated description with progress"}
+    "updateQuest": {"title": "Quest Title (exact match)", "description": "Updated description with progress"},
+    "addCompanion": {"id": "unique_id", "name": "Name", "race": "Race", "class": "Class", "level": 1, "hpMax": 25, "ac": 14, "damageRoll": "1d8+3", "personality": "Brief personality", "abilities": ["ability1"], "stats": {"str": 14, "dex": 12, "con": 14, "int": 10, "wis": 12, "cha": 10}},
+    "removeCompanion": "companion_id"
   }
 }`;
     }

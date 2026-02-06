@@ -16,3 +16,4 @@ export * from './shops'; // New
 export * from './encounters'; // New
 export * from './lore'; // New
 export * from './statusEffects'; // New
+export * from './rumors';
