@@ -140,8 +140,11 @@ export const createDefaultCharacter = () => {
         feats: ['tough'],
         hpMax: 0, hpCurrent: 0, manaMax: 0, manaCurrent: 0, staminaMax: 0, staminaCurrent: 0, ac: 0, // These will be calculated by createCharacter
         proficiencies: { skills: [...(BACKGROUNDS[defaultBackground]?.skills || []), ...(CLASSES[defaultClass]?.skills || [])], savingThrows: CLASSES[defaultClass]?.savingThrows || [] },
-        // FIX: Added missing 'statusEffects' property to satisfy Player interface.
         statusEffects: [],
+        companions: [],
+        discoveredLocations: [],
+        killCount: 0,
+        totalDamageDealt: 0,
     };
 
     return createCharacter(defaultPlayerData);

@@ -6,7 +6,7 @@ import { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken, 
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { RefreshCw, Heart, Zap, Wind, Coins, Map, User, Backpack, Star, Menu, Shield, MapPin, Anchor, CloudRain, CloudLightning, Globe, Save } from 'lucide-react';
 
-import { Player, World, LogEntry, Choice, Item, Enemy, SkillCheckDetails, NPC, Achievement, PlayerStats, Recipe, ShopData, Encounter, StatusEffect } from './types';
+import { Player, World, LogEntry, Choice, Item, Enemy, SkillCheckDetails, NPC, Achievement, PlayerStats, Recipe, ShopData, Encounter, StatusEffect, Companion } from './types';
 import { getFirebaseConfig } from './firebase/index';
 import { formatCurrency, createCharacter, checkSurvival, calculatePlayerAC, calculateXpToNextLevel, handleLevelUp, ALL_SKILLS, getMod, parseDamageRoll, createDefaultCharacter, getCurrentLocation, calculateEncumbrance, calculateMaxCarry, MemoryStore, logEntryToMemory, getActionModifiers, getChoiceEffectiveCost, getProficiencyBonus, resolvePlayerAttack, resolveEnemyDamage, computeGameSnapshot, tickStatusEffects } from './systems/index';
 import { callGeminiAPI, buildPrompt, generateSceneImage, callLLM, loadProviderConfig } from './api/index'; // generateSceneImage kept for portrait generation only
@@ -19,7 +19,7 @@ import {
   AchievementScreen, CraftingScreen
 } from './components/index';
 import { Bar, NavBtn, ToastContainer, ToastMessage, AtmosphereOverlay, DiceRollOverlay } from './components/ui';
-import { ITEMS_DB, ACHIEVEMENTS_DB, NPCS_DB, SHOPS_DB, ENCOUNTERS_DB, RECIPES_DB, LOCATIONS_DB, ENEMIES_DB } from './registries/index';
+import { ITEMS_DB, ACHIEVEMENTS_DB, NPCS_DB, SHOPS_DB, ENCOUNTERS_DB, RECIPES_DB, LOCATIONS_DB, ENEMIES_DB, RUMORS_DB } from './registries/index';
 
 const normalizeCurrencyDelta = (delta: number, context: string) => {
   if (!delta) return 0;
@@ -187,6 +187,10 @@ export default function App() {
       // FIX: Initialize player with empty statusEffects array
       const { player: dp, world: dw, log: dl, choices: dc } = createDefaultCharacter();
       dp.statusEffects = [];
+      dp.companions = [];
+      dp.discoveredLocations = [];
+      dp.killCount = 0;
+      dp.totalDamageDealt = 0;
       setPlayer(dp); setWorld(dw); setLog(dl); setChoices(dc);
       setCurrentSlotId(targetSlotId); localStorage.setItem('lastPlayedSlotId', targetSlotId);
       persistGame(targetSlotId, { player: dp, world: dw, log: dl, choices: dc, view: 'game', enemy: null });
@@ -227,6 +231,31 @@ export default function App() {
     if (choice?.intent === 'system') {
       if (choice.id === 'settings') setView('settings');
       else if (choice.id === 'death_menu') { setView('landing'); setPlayer(null); setLog([]); setChoices([]); }
+      else if (choice.id === 'death_revive_item' && player) {
+        const nextP = { ...player, inventory: [...player.inventory] };
+        const reviveIdx = nextP.inventory.findIndex(i => i.id === 'scroll_of_resurrection' || i.id === 'phoenix_feather');
+        if (reviveIdx > -1) {
+          const itemName = nextP.inventory[reviveIdx].name;
+          nextP.inventory.splice(reviveIdx, 1);
+          nextP.hpCurrent = Math.max(1, Math.floor(nextP.hpMax * 0.25));
+          nextP.exhaustion = Math.min(5, nextP.exhaustion + 2);
+          const revLog = [...log, { type: 'worldevent' as const, text: `The ${itemName} shatters in a burst of light! ${nextP.name} gasps back to life, weakened but alive. (+2 Exhaustion)` }];
+          setPlayer(nextP); setLog(revLog); setChoices([]);
+          persistGame(currentSlotId, { player: nextP, world, log: revLog, choices: [], view: 'game', enemy: null });
+          addToast('Revived!', 'success');
+        }
+        return;
+      }
+      else if (choice.id === 'death_companion_revive' && player) {
+        const nextP = { ...player };
+        nextP.hpCurrent = Math.max(1, Math.floor(nextP.hpMax * 0.15));
+        nextP.exhaustion = Math.min(5, nextP.exhaustion + 1);
+        const revLog = [...log, { type: 'worldevent' as const, text: `Divine light washes over ${nextP.name}. You cough and splutter back to consciousness, owing your life to your companion. (+1 Exhaustion)` }];
+        setPlayer(nextP); setLog(revLog); setChoices([]);
+        persistGame(currentSlotId, { player: nextP, world, log: revLog, choices: [], view: 'game', enemy: null });
+        addToast('Revived by companion!', 'success');
+        return;
+      }
       else if (choice.id === 'death_load' && currentSlotId) {
         const saved = loadGameLocal(currentSlotId);
         if (saved) { setPlayer(saved.player); setWorld(saved.world); setLog(saved.log); setChoices(saved.choices || []); setView(saved.view || 'game'); addToast('Save loaded.', 'success'); }
@@ -405,6 +434,11 @@ export default function App() {
             const newLoc = fact.substring('Arrived at '.length);
             addToast(`Traveled to ${newLoc}`, 'info');
             finalLog.push({ type: 'milestone' as const, text: `TRAVELED: ${newLoc}` });
+            // Track discovered locations for the map
+            const locData = LOCATIONS_DB.find(l => l.name === newLoc);
+            if (locData && !nextPlayer.discoveredLocations?.includes(locData.id)) {
+              nextPlayer.discoveredLocations = [...(nextPlayer.discoveredLocations || []), locData.id];
+            }
           } else {
             // Block AI from changing location on non-travel actions
             console.warn(`Blocked location change to "${fact}" — player did not choose travel.`);
@@ -494,6 +528,35 @@ export default function App() {
           }
       }
 
+      // Handle companion recruitment from AI
+      if (p.addCompanion) {
+        const comp: Companion = {
+          id: p.addCompanion.id || `comp_${Date.now()}`,
+          name: p.addCompanion.name,
+          race: p.addCompanion.race || 'Human',
+          class: p.addCompanion.class || 'Fighter',
+          level: p.addCompanion.level || nextPlayer.level,
+          hpMax: p.addCompanion.hpMax || 20 + (p.addCompanion.level || nextPlayer.level) * 5,
+          hpCurrent: p.addCompanion.hpMax || 20 + (p.addCompanion.level || nextPlayer.level) * 5,
+          ac: p.addCompanion.ac || 14,
+          damageRoll: p.addCompanion.damageRoll || '1d8+3',
+          stats: p.addCompanion.stats || { str: 14, dex: 12, con: 14, int: 10, wis: 12, cha: 10 },
+          personality: p.addCompanion.personality || 'A steadfast ally.',
+          loyalty: 50,
+          abilities: p.addCompanion.abilities || [],
+          status: 'active',
+        };
+        if (!(nextPlayer.companions || []).some(c => c.id === comp.id)) {
+          nextPlayer.companions = [...(nextPlayer.companions || []), comp];
+          addToast(`${comp.name} joined your party!`, 'success');
+          finalLog.push({ type: 'milestone', text: `COMPANION JOINED: ${comp.name} (${comp.race} ${comp.class})` });
+        }
+      }
+      // Handle companion departure
+      if (p.removeCompanion) {
+        nextPlayer.companions = (nextPlayer.companions || []).filter(c => c.id !== p.removeCompanion);
+      }
+
       let currentEnemy = enemy;
       // NEW: Handle starting a combat encounter based on AI patch
       if (p.startEncounter?.id) {
@@ -516,6 +579,7 @@ export default function App() {
         if (p.playerAttackHitsEnemy) {
           const { damage, details } = resolvePlayerAttack(nextPlayer, currentEnemy);
           currentEnemy.hp = Math.max(0, currentEnemy.hp - damage);
+          nextPlayer.totalDamageDealt = (nextPlayer.totalDamageDealt || 0) + damage;
         }
         if (p.enemyAttackHitsPlayer) {
           const { damage, details } = resolveEnemyDamage(nextPlayer, currentEnemy);
@@ -524,11 +588,23 @@ export default function App() {
         // Player dies in combat
         if (nextPlayer.hpCurrent <= 0) {
           nextPlayer.hpCurrent = 0;
-          finalLog.push({ type: 'worldevent', text: `${currentEnemy.name} strikes a fatal blow. ${nextPlayer.name} has fallen in battle...` });
-          const deathChoices: Choice[] = [
+          const hasReviveItem = nextPlayer.inventory.some(i => i.id === 'scroll_of_resurrection' || i.id === 'phoenix_feather');
+          const hasCompanionHealer = (nextPlayer.companions || []).some(c => c.status === 'active' && (c.class === 'Cleric' || c.class === 'Paladin'));
+          const deathChoices: Choice[] = [];
+          if (hasReviveItem) {
+            finalLog.push({ type: 'worldevent', text: `${currentEnemy.name} strikes a fatal blow! But a reviving glow pulses from your pack...` });
+            deathChoices.push({ id: 'death_revive_item', label: 'Use Revival Item', intent: 'system', manaCost: 0, staminaCost: 0 });
+          } else if (hasCompanionHealer) {
+            const healer = (nextPlayer.companions || []).find(c => c.status === 'active' && (c.class === 'Cleric' || c.class === 'Paladin'));
+            finalLog.push({ type: 'worldevent', text: `${currentEnemy.name} strikes a fatal blow! ${healer?.name} rushes to your side...` });
+            deathChoices.push({ id: 'death_companion_revive', label: `${healer?.name} revives you`, intent: 'system', manaCost: 0, staminaCost: 0 });
+          } else {
+            finalLog.push({ type: 'worldevent', text: `${currentEnemy.name} strikes a fatal blow. ${nextPlayer.name} has fallen in battle...` });
+          }
+          deathChoices.push(
             { id: 'death_load', label: 'Load Last Save', intent: 'system', manaCost: 0, staminaCost: 0 },
             { id: 'death_menu', label: 'Return to Main Menu', intent: 'system', manaCost: 0, staminaCost: 0 },
-          ];
+          );
           setEnemy(null); setView('game');
           setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices(deathChoices);
           persistGame(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: deathChoices, view: 'game', enemy: null });
@@ -536,9 +612,30 @@ export default function App() {
           setProcessing(false);
           return;
         }
+        // Companion attacks in combat
+        const activeCompanions = (nextPlayer.companions || []).filter(c => c.status === 'active');
+        if (activeCompanions.length > 0 && currentEnemy.hp > 0) {
+          for (const comp of activeCompanions) {
+            if (currentEnemy.hp <= 0) break;
+            const compDmg = parseDamageRoll(comp.damageRoll);
+            currentEnemy.hp = Math.max(0, currentEnemy.hp - compDmg);
+            nextPlayer.totalDamageDealt = (nextPlayer.totalDamageDealt || 0) + compDmg;
+            // Companion takes damage from enemy counter
+            const counterDmg = Math.max(0, parseDamageRoll(currentEnemy.damageRoll) - Math.floor((comp.ac - 10) / 2));
+            comp.hpCurrent = Math.max(0, comp.hpCurrent - Math.floor(counterDmg * 0.5));
+            if (comp.hpCurrent <= 0) {
+              comp.status = 'unconscious';
+              addToast(`${comp.name} fell unconscious!`, 'danger');
+            }
+          }
+          // Update companions
+          nextPlayer.companions = [...(nextPlayer.companions || [])];
+        }
+
         if (p.endCombat || currentEnemy.hp <= 0) {
           if (currentEnemy.hp <= 0) {
             finalLog.push({ type: 'milestone', text: `${currentEnemy.name} slain.` });
+            nextPlayer.killCount = (nextPlayer.killCount || 0) + 1;
             // Award XP from enemy data
             if (currentEnemy.xp && currentEnemy.xp > 0 && (!p.xpDelta || p.xpDelta === 0)) {
               nextPlayer.xp += currentEnemy.xp;
@@ -677,11 +774,25 @@ export default function App() {
       // Check for player death
       if (nextPlayer.hpCurrent <= 0 && !currentEnemy) {
           nextPlayer.hpCurrent = 0;
-          finalLog.push({ type: 'worldevent', text: `${nextPlayer.name} has fallen. The light fades from your eyes as darkness claims you...` });
-          const deathChoices: Choice[] = [
+          // Check for resurrection options
+          const hasReviveItem = nextPlayer.inventory.some(i => i.id === 'scroll_of_resurrection' || i.id === 'phoenix_feather');
+          const hasCompanionHealer = (nextPlayer.companions || []).some(c => c.status === 'active' && (c.class === 'Cleric' || c.class === 'Paladin'));
+
+          const deathChoices: Choice[] = [];
+          if (hasReviveItem) {
+            finalLog.push({ type: 'worldevent', text: `${nextPlayer.name} has fallen... but a faint glow emanates from your pack. Perhaps death is not the end.` });
+            deathChoices.push({ id: 'death_revive_item', label: 'Use Revival Item (1 HP)', intent: 'system', manaCost: 0, staminaCost: 0 });
+          } else if (hasCompanionHealer) {
+            const healer = (nextPlayer.companions || []).find(c => c.status === 'active' && (c.class === 'Cleric' || c.class === 'Paladin'));
+            finalLog.push({ type: 'worldevent', text: `${nextPlayer.name} has fallen... but ${healer?.name} rushes to your side, channeling divine energy!` });
+            deathChoices.push({ id: 'death_companion_revive', label: `${healer?.name} revives you`, intent: 'system', manaCost: 0, staminaCost: 0 });
+          } else {
+            finalLog.push({ type: 'worldevent', text: `${nextPlayer.name} has fallen. The light fades from your eyes as darkness claims you...` });
+          }
+          deathChoices.push(
             { id: 'death_load', label: 'Load Last Save', intent: 'system', manaCost: 0, staminaCost: 0 },
             { id: 'death_menu', label: 'Return to Main Menu', intent: 'system', manaCost: 0, staminaCost: 0 },
-          ];
+          );
           setPlayer(nextPlayer); setWorld(nextWorld); setLog(finalLog); setChoices(deathChoices);
           persistGame(currentSlotId, { player: nextPlayer, world: nextWorld, log: finalLog, choices: deathChoices, view: 'game', enemy: null });
           addToast('You have died.', 'danger');
@@ -715,6 +826,10 @@ export default function App() {
     const { player: p, world: w, log: l, choices: c } = createCharacter(data);
     p.achievements = [];
     p.statusEffects = [];
+    p.companions = p.companions || [];
+    p.discoveredLocations = p.discoveredLocations || [];
+    p.killCount = p.killCount || 0;
+    p.totalDamageDealt = p.totalDamageDealt || 0;
     setPlayer(p); setWorld(w); setLog(l); setChoices(c); setView('game');
     persistGame(currentSlotId, { player: p, world: w, log: l, choices: c, view: 'game', enemy: null });
     // Initialize fresh memory store for new character
@@ -1004,6 +1119,15 @@ export default function App() {
           <Bar color="bg-blue-500" cur={player?.manaCurrent || 0} max={player?.manaMax || 1} label="MP" icon={<Zap size={8}/>} warningThreshold={0.3} criticalThreshold={0.15} />
           <Bar color="bg-green-500" cur={player?.staminaCurrent || 0} max={player?.staminaMax || 1} label="ST" icon={<Wind size={8}/>} warningThreshold={0.3} criticalThreshold={0.15} />
         </div>
+        {/* XP Progress Bar */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-full bg-amber-500/80 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((player?.xp || 0) / calculateXpToNextLevel(player?.level || 1)) * 100)}%` }} />
+          </div>
+          <span className="text-[8px] text-amber-500/70 font-mono shrink-0">
+            <Star size={8} className="inline mr-0.5" />Lv{player?.level} ({player?.xp || 0}/{calculateXpToNextLevel(player?.level || 1)} XP)
+          </span>
+        </div>
       </div>
 
       <div className="flex-1 overflow-hidden relative">
@@ -1043,11 +1167,23 @@ export default function App() {
                     executeTurn(t === 'short' ? "I take a short rest." : "I set up camp for a long rest.");
                 }} onClose={() => setView('game')} />;
                 case 'journal': return <JournalScreen log={log} world={world} onClose={() => setView('game')} />;
-                case 'map': return <MapScreen world={world} onClose={() => setView('game')} />;
+                case 'map': return <MapScreen world={world} player={player!} onClose={() => setView('game')} onTravel={(locName) => { setView('game'); executeTurn(`I travel to ${locName}`, { id: `travel_${locName}`, label: `Travel to ${locName}`, intent: 'travel', manaCost: 0, staminaCost: 5 }); }} />;
                 case 'settings': return <SettingsPage onClose={() => setView('game')} onConfigChange={(c) => setLlmConfig(c)} />;
                 case 'spells': return <SpellScreen player={player!} onClose={() => setView('game')} onCast={(spellName) => { setView('game'); executeTurn(`I cast ${spellName}`); }} />;
                 case 'codex': return <CodexScreen player={player!} onClose={() => setView('game')} />;
-                case 'party': return <PartyScreen player={player!} onClose={() => setView('game')} />;
+                case 'party': return <PartyScreen player={player!} onClose={() => setView('game')} onDismiss={(compId) => {
+                    if (!player) return;
+                    const next = { ...player, companions: (player.companions || []).map(c => c.id === compId ? { ...c, status: 'dismissed' as const } : c) };
+                    setPlayer(next); addToast('Companion dismissed.', 'info');
+                    persistGame(currentSlotId, { player: next, world, log, choices, view: 'party', enemy });
+                }} onRecall={(compId) => {
+                    if (!player) return;
+                    const activeCount = (player.companions || []).filter(c => c.status === 'active').length;
+                    if (activeCount >= 4) { addToast('Party is full (max 4).', 'danger'); return; }
+                    const next = { ...player, companions: (player.companions || []).map(c => c.id === compId ? { ...c, status: 'active' as const } : c) };
+                    setPlayer(next); addToast('Companion recalled!', 'success');
+                    persistGame(currentSlotId, { player: next, world, log, choices, view: 'party', enemy });
+                }} />;
                 case 'feats': return <FeatScreen player={player!} onClose={() => setView('game')} />;
                 case 'shop': return shop ? <ShopScreen player={player!} shop={shop} onClose={() => setView('game')} onBuy={handleBuyItem} onSell={handleSellItem} /> : <GameView {...gameViewProps} />;
                 case 'achievements': return <AchievementScreen player={player!} onClose={() => setView('game')} />;

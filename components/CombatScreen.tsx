@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Heart, Zap, Shield, Swords, Send, FlaskConical, Wind, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
-import { Player, Enemy, LogEntry } from '../types';
+import { Player, Enemy, LogEntry, Companion } from '../types';
 import { Bar, AudioPlayer } from './ui';
 
 interface FloatingText {
@@ -111,6 +111,23 @@ export const CombatScreen: React.FC<CombatScreenProps> = ({ player, enemy, onAct
                     criticalThreshold={0.2}
                 />
             </div>
+            {/* Companion status in combat */}
+            {(player.companions || []).filter(c => c.status === 'active').length > 0 && (
+                <div className="px-4 py-1.5 bg-slate-900/60 border-b border-slate-800 flex gap-2 overflow-x-auto shrink-0">
+                    {(player.companions || []).filter(c => c.status === 'active').map(comp => (
+                        <div key={comp.id} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-800/50 border border-slate-700/30 shrink-0">
+                            <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[8px] text-white font-bold">{comp.name[0]}</div>
+                            <div>
+                                <div className="text-[9px] text-white font-medium leading-none">{comp.name}</div>
+                                <div className="text-[8px] text-slate-500">{comp.hpCurrent}/{comp.hpMax} HP</div>
+                            </div>
+                            <div className="w-12 h-1 bg-slate-700 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${comp.hpCurrent / comp.hpMax < 0.3 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${(comp.hpCurrent / comp.hpMax) * 100}%` }} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth" ref={scrollRef}>
                 {log.map((msg, i) => {
                     if (!['combat', 'narration', 'player'].includes(msg.type)) return null;

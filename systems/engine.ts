@@ -128,6 +128,10 @@ export interface GameSnapshot {
     // Personality (for GM consistency)
     personality: Player['personality'];
     concept: string;
+
+    // Combat record
+    killCount: number;
+    totalDamageDealt: number;
 }
 
 // --- Exhaustion Penalties (D&D 5E) ---
@@ -556,6 +560,8 @@ export function computeGameSnapshot(player: Player): GameSnapshot {
         })),
         personality: player.personality,
         concept: player.concept,
+        killCount: player.killCount || 0,
+        totalDamageDealt: player.totalDamageDealt || 0,
     };
 }
 
@@ -831,6 +837,13 @@ export function formatSnapshotForPrompt(snap: GameSnapshot): string {
     if (snap.factionStandings.length > 0) {
         lines.push(`=== FACTION STANDINGS ===`);
         lines.push(snap.factionStandings.map(f => `${f.faction}: ${f.reputation}`).join(', '));
+        lines.push('');
+    }
+
+    // Combat stats summary
+    if (snap.killCount > 0 || snap.totalDamageDealt > 0) {
+        lines.push(`=== COMBAT RECORD ===`);
+        lines.push(`Enemies Slain: ${snap.killCount} | Total Damage Dealt: ${snap.totalDamageDealt}`);
         lines.push('');
     }
 
